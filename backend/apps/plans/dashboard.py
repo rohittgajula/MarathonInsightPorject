@@ -40,6 +40,10 @@ def dashboard(request):
         .select_related("metrics")
         .order_by("-started_at")[:40]
     )
+    # insights reads metrics.activity.local_date; pre-attach to avoid N+1.
+    for a in activities:
+        if hasattr(a, "metrics"):
+            a.metrics.activity = a
     recent_metrics = [a.metrics for a in activities if hasattr(a, "metrics")]
     log_count = DailyLog.objects.filter(athlete=athlete).count()
 

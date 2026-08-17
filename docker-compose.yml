@@ -40,9 +40,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-runproject}:${POSTGRES_PASSWORD:-runproject}@db:5432/${POSTGRES_DB:-runproject}
       REDIS_URL: redis://redis:6379/0
       MEDIA_ROOT: /data/media
+      GARMIN_TOKEN_ROOT: /data/garmin_tokens
     volumes:
       - ./backend:/app
       - media:/data/media
+      - ${GARMIN_TOKEN_DIR:-~/Library/Caches/garmin-mcp/garth}:/data/garmin_tokens/athlete_1:ro
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     depends_on:
@@ -59,6 +61,7 @@ services:
     volumes:
       - ./backend:/app
       - media:/data/media
+      - ${GARMIN_TOKEN_DIR:-~/Library/Caches/garmin-mcp/garth}:/data/garmin_tokens/athlete_1:ro
     depends_on:
       backend:
         condition: service_started
@@ -75,6 +78,7 @@ services:
     volumes:
       - ./backend:/app
       - media:/data/media
+      - ${GARMIN_TOKEN_DIR:-~/Library/Caches/garmin-mcp/garth}:/data/garmin_tokens/athlete_1:ro
     depends_on:
       backend:
         condition: service_started

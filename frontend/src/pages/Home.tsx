@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
+import { GarminPanel } from "../components/GarminPanel";
 import { TrendCharts } from "../components/TrendCharts";
 import { dateStr, durStr, paceStr } from "../lib/format";
 import type { Dashboard } from "../lib/types";
@@ -27,18 +28,11 @@ export function Home() {
         <h1>Tomorrow</h1>
       </div>
 
-      {!data.garmin_connected && (
-        <div className="banner">
-          <p>
-            <strong>Garmin isn't connected yet.</strong> Everything below comes from
-            files you've uploaded by hand. Connect Garmin to have runs appear on their own.
-          </p>
-        </div>
-      )}
+      <GarminPanel />
 
       {t && (
         <div className="card stack" style={{ gap: 12 }}>
-          <div className="row" style={{ justifyContent: "space-between" }}>
+          <div className="row split" style={{ justifyContent: "space-between" }}>
             <div className="row" style={{ gap: 9 }}>
               <h2>{t.title}</h2>
               {t.kind !== "rest" && (
@@ -86,7 +80,7 @@ export function Home() {
       </div>
 
       <div className="card stack">
-        <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="row split" style={{ justifyContent: "space-between" }}>
           <h2>This week</h2>
           <span className="faint">Tue and Thu intervals · Sunday long run</span>
         </div>

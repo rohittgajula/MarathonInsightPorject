@@ -101,6 +101,54 @@ def build(athlete, last_activity, recent_metrics: list, log_count: int, session)
             "means anything. Recovery in walk breaks is the clearest early sign fitness is coming.",
         ))
 
+    if latest and latest.avg_run_cadence_spm:
+        cadence = latest.avg_run_cadence_spm
+        if cadence >= 160:
+            out.append(Insight(
+                "good", f"Cadence {cadence:.0f} steps per minute",
+                "This is already where it should be, so there is nothing to fix in your "
+                "form. It also means you can slow down by shortening your stride rather "
+                "than by slowing your legs — same rhythm, smaller steps.",
+            ))
+        elif cadence < 150:
+            out.append(Insight(
+                "warn", f"Cadence {cadence:.0f} steps per minute is low",
+                "Under about 160 usually means overstriding, which lands you heavily and "
+                "raises injury risk. Try quicker, smaller steps at the same pace.",
+            ))
+
+    # Walking is not failure on this plan, but the ratio says what the session was.
+    if latest and latest.run_time_s and latest.walk_time_s:
+        run_share = 100 * latest.run_time_s / (latest.run_time_s + latest.walk_time_s)
+        out.append(Insight(
+            "neutral", f"You ran {run_share:.0f}% of your moving time",
+            f"{latest.run_time_s / 60:.0f} min running against "
+            f"{latest.walk_time_s / 60:.0f} min walking, across {latest.run_block_count} "
+            "blocks. Walk breaks are part of the plan — the number to watch is whether "
+            "the run blocks get longer, not whether the walking disappears.",
+        ))
+
+    # Consistency beats any single session, so it gets its own card.
+    if len(recent_metrics) >= 2:
+        recent_dates = [m.activity.local_date for m in recent_metrics[:6] if m.activity_id]
+        if len(recent_dates) >= 2:
+            span = (recent_dates[0] - recent_dates[-1]).days or 1
+            per_week = len(recent_dates) / (span / 7) if span >= 7 else None
+            if per_week is not None:
+                if per_week < 2:
+                    out.append(Insight(
+                        "warn", f"About {per_week:.1f} runs a week",
+                        "The plan assumes three. Two is enough to hold fitness but not "
+                        "enough to build it — consistency matters more here than any "
+                        "single session.",
+                    ))
+                elif per_week >= 2.5:
+                    out.append(Insight(
+                        "good", f"About {per_week:.1f} runs a week",
+                        "On track with the plan's three sessions. This is the single "
+                        "strongest predictor of arriving at the start line ready.",
+                    ))
+
     if log_count < MIN_FOR_ANY_CLAIM:
         out.append(Insight(
             "neutral", "Not enough daily logs to correlate anything yet",
@@ -112,6 +160,12 @@ def build(athlete, last_activity, recent_metrics: list, log_count: int, session)
         out.append(Insight(
             "neutral", f"Tomorrow: {session.title}",
             session.detail,
+        ))
+    elif session:
+        out.append(Insight(
+            "neutral", "Tomorrow is a rest day",
+            "No running. Adaptation happens on the days you don't run, so this is part "
+            "of the training rather than a gap in it.",
         ))
 
     return out

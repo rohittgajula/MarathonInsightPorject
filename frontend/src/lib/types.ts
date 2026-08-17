@@ -139,3 +139,17 @@ export interface Dashboard {
   log_count: number;
   garmin_connected: boolean;
 }
+
+export interface GarminStatus {
+  connected: boolean;
+  name: string;
+  error: string;
+}
+
+export interface SyncResult {
+  imported: number;
+  skipped: number;
+  failed: number;
+  errors: string[];
+  activity_ids: number[];
+}
