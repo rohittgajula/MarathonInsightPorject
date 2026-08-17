@@ -162,6 +162,11 @@ export interface Dashboard {
   wellness: WellnessPoint[];
   session_steps: SessionStep[];
   session_targets: SessionTarget[];
+  up_next: PlannedSession | null;
+  up_next_label: string;
+  up_next_date: string;
+  done_today: boolean;
+  local_date: string;
   activity_count: number;
   log_count: number;
   garmin_connected: boolean;

@@ -36,7 +36,7 @@ def dashboard(request):
     if athlete is None:
         raise PermissionDenied("No athlete profile.")
 
-    today = timezone.localdate()
+    today = athlete.local_today
     tomorrow = today + dt.timedelta(days=1)
     race = Race.objects.filter(athlete=athlete, is_target=True).first()
 
@@ -58,16 +58,27 @@ def dashboard(request):
     tomorrow_session = session_for(race.race_date, tomorrow, athlete) if race else None
     week = upcoming(race.race_date, today, 7, athlete) if race else []
 
-    # What the athlete logged most recently eases tomorrow's session if it needs to.
+    # Which session the athlete actually needs to see.
+    #
+    # A card headed "Tomorrow" is wrong for most of the day: at 00:48 the session that
+    # matters is the one in a few hours' time, not the one 30 hours away. So show
+    # today's until it is done, then move on. "Done" means an activity was recorded
+    # today — the honest signal, rather than a clock guess about when people run.
+    done_today = any(a.local_date == today for a in activities)
+    show_today = bool(today_session) and today_session.kind != "rest" and not done_today
+    focus_date = today if show_today else tomorrow
+    focus_session = today_session if show_today else tomorrow_session
+
+    # Readiness applies to the session being shown, not always to tomorrow's.
     latest_log = readiness.log_for(athlete, today)
     latest_metrics = readiness.metrics_for(athlete, today)
-    readiness.apply(tomorrow_session, latest_log, latest_metrics)
+    readiness.apply(focus_session, latest_log, latest_metrics)
     for session in week:
-        if session.date == tomorrow:
+        if session.date == focus_date:
             readiness.apply(session, latest_log, latest_metrics)
 
     cards = insights.build(athlete, activities[0] if activities else None,
-                           recent_metrics, log_count, tomorrow_session)
+                           recent_metrics, log_count, focus_session)
 
     # Trend series, oldest first so charts read left to right.
     trend = [
@@ -107,10 +118,17 @@ def dashboard(request):
 
     return Response({
         "wellness": wellness,
-        "session_steps": coaching.steps_for(tomorrow_session, athlete),
-        "session_targets": coaching.targets_for(tomorrow_session, athlete, coach_metrics),
+        "session_steps": coaching.steps_for(focus_session, athlete),
+        "session_targets": coaching.targets_for(focus_session, athlete, coach_metrics),
         "today": _session_dict(today_session) if today_session else None,
+        # `tomorrow` is kept as the literal next calendar day; `up_next` is the one
+        # the page leads with.
         "tomorrow": _session_dict(tomorrow_session) if tomorrow_session else None,
+        "up_next": _session_dict(focus_session) if focus_session else None,
+        "up_next_label": "Today" if show_today else "Tomorrow",
+        "up_next_date": focus_date,
+        "done_today": done_today,
+        "local_date": today,
         "week": [_session_dict(s) for s in week],
         "insights": [{"tone": c.tone, "headline": c.headline, "detail": c.detail} for c in cards],
         "trend": trend,

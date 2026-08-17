@@ -43,7 +43,7 @@ def calendar(request):
     sleep onto a session three weeks out would be nonsense.
     """
     athlete = _athlete(request)
-    today = timezone.localdate()
+    today = athlete.local_today
     start = _parse(request.query_params.get("from"), today.replace(day=1))
     end = _parse(request.query_params.get("to"), start + dt.timedelta(days=41))
     if end < start:

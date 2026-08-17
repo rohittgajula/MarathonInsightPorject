@@ -22,7 +22,7 @@ class DailyLogViewSet(AthleteScopedMixin, viewsets.ModelViewSet):
         same day was a silent lie — the calendar then showed whichever one it
         happened to read first.
         """
-        log_date = serializer.validated_data.get("log_date") or timezone.localdate()
+        log_date = serializer.validated_data.get("log_date") or self.athlete.local_today
         existing = DailyLog.objects.filter(athlete=self.athlete, log_date=log_date).first()
         if existing:
             existing.text = serializer.validated_data.get("text", existing.text)
@@ -44,5 +44,5 @@ class JournalEntryViewSet(AthleteScopedMixin, viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(
             athlete=self.athlete,
-            entry_date=serializer.validated_data.get("entry_date") or timezone.localdate(),
+            entry_date=serializer.validated_data.get("entry_date") or self.athlete.local_today,
         )

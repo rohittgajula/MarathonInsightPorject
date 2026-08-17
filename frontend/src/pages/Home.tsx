@@ -21,7 +21,8 @@ export function Home() {
   if (isLoading) return <p className="muted">Loading…</p>;
   if (error || !data) return <p className="error">Could not load your dashboard.</p>;
 
-  const t = data.tomorrow;
+  const t = data.up_next ?? data.tomorrow;
+  const label = data.up_next_label ?? "Tomorrow";
 
   return (
     <div className="stack" style={{ gap: 22 }}>
@@ -36,9 +37,10 @@ export function Home() {
             <span className="hero-icon" aria-hidden="true">🏃</span>
             <div style={{ minWidth: 0 }}>
               <div className="eyebrow">
-                {dateStr(new Date().toISOString().slice(0, 10))}
+                {dateStr(data.up_next_date ?? data.local_date)}
+                {data.done_today && label === "Tomorrow" && " · today's session is done"}
               </div>
-              <h1>Tomorrow: {t ? t.title : "no plan set"}</h1>
+              <h1>{label}: {t ? t.title : "no plan set"}</h1>
               <p>
                 {t
                   ? t.kind === "rest"

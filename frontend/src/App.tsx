@@ -17,7 +17,7 @@ import { usePointerGlow } from "./lib/usePointerGlow";
 import type { Race } from "./lib/types";
 
 const NAV = [
-  { to: "/", label: "Tomorrow", end: true },
+  { to: "/", label: "Up next", end: true },
   { to: "/calendar", label: "Calendar", end: false },
   { to: "/activities", label: "Activities", end: false },
   { to: "/warmup", label: "Warm-up", end: false },

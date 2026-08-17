@@ -66,6 +66,28 @@ class Athlete(models.Model):
         return self.display_name
 
     @property
+    def local_now(self):
+        """Now, in the athlete's own timezone.
+
+        Django's TIME_ZONE is UTC, so timezone.localdate() answers a question nobody
+        asked: at 00:48 in Kolkata it is still yesterday in UTC, and the whole app
+        would show yesterday's session. Every 'today' must come from here.
+        """
+        from zoneinfo import ZoneInfo
+
+        from django.utils import timezone
+
+        try:
+            zone = ZoneInfo(self.timezone or "UTC")
+        except Exception:
+            zone = ZoneInfo("UTC")
+        return timezone.now().astimezone(zone)
+
+    @property
+    def local_today(self):
+        return self.local_now.date()
+
+    @property
     def running_days_per_week(self) -> int:
         return sum(1 for v in (self.training_days or {}).values()
                    if v in ("jog", "intervals", "long"))
