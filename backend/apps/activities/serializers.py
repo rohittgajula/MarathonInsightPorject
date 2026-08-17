@@ -39,11 +39,23 @@ class ActivityListSerializer(serializers.ModelSerializer):
 
 class ActivityDetailSerializer(ActivityListSerializer):
     segments = SegmentSerializer(many=True, read_only=True)
+    chart_notes = serializers.SerializerMethodField()
 
     class Meta(ActivityListSerializer.Meta):
         fields = ActivityListSerializer.Meta.fields + [
-            "total_ascent_m", "total_descent_m", "segments",
+            "total_ascent_m", "total_descent_m", "segments", "chart_notes",
         ]
+
+    def get_chart_notes(self, obj) -> dict:
+        from .chart_notes import build
+
+        previous = (
+            Activity.objects.filter(athlete_id=obj.athlete_id, started_at__lt=obj.started_at)
+            .select_related("metrics")
+            .order_by("-started_at")
+            .first()
+        )
+        return build(obj, obj.athlete, previous)
 
 
 class ActivityStreamSerializer(serializers.ModelSerializer):

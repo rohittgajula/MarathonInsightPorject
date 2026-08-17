@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
+import { ChartNotes } from "../components/ChartNotes";
 import { CourseMap } from "../components/CourseMap";
 import { SegmentBar } from "../components/SegmentBar";
 import { SessionCharts } from "../components/SessionCharts";
@@ -96,18 +97,21 @@ export function ActivityDetail() {
       <div className="card stack">
         <h2>Session shape</h2>
         <SegmentBar segments={a.segments ?? []} />
+        <ChartNotes notes={a.chart_notes?.shape} />
       </div>
 
       <div className="card stack">
         <h2>Route</h2>
         {stream.isLoading && <p className="muted">Loading route…</p>}
         {stream.data && <CourseMap stream={stream.data} segments={a.segments ?? []} />}
+        <ChartNotes notes={a.chart_notes?.route} />
       </div>
 
       <div className="card">
         {stream.isLoading && <p className="muted">Loading per-second data…</p>}
         {stream.data && athlete.data && (
-          <SessionCharts stream={stream.data} athlete={athlete.data} segments={a.segments ?? []} />
+          <SessionCharts stream={stream.data} athlete={athlete.data}
+                         segments={a.segments ?? []} notes={a.chart_notes} />
         )}
       </div>
 

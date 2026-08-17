@@ -2,7 +2,8 @@ import {
   Area, CartesianGrid, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine,
   ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis,
 } from "recharts";
-import type { Athlete, Segment, StreamPoint } from "../lib/types";
+import type { Athlete, ChartNotes as Notes, Segment, StreamPoint } from "../lib/types";
+import { ChartNotes } from "./ChartNotes";
 import { durStr, paceStr } from "../lib/format";
 
 /* Pace and heart rate are deliberately two stacked charts sharing an x-axis rather
@@ -69,7 +70,8 @@ function ChartTooltip({ active, payload, label, unit }: any) {
 }
 
 export function SessionCharts(
-  { stream, athlete, segments }: { stream: StreamPoint[]; athlete: Athlete; segments: Segment[] },
+  { stream, athlete, segments, notes }:
+    { stream: StreamPoint[]; athlete: Athlete; segments: Segment[]; notes?: Notes },
 ) {
   const rows = buildRows(stream, segments);
   if (!rows.length) return <p className="faint">No per-second data for this activity.</p>;
@@ -118,6 +120,7 @@ export function SessionCharts(
             />
           </ComposedChart>
         </ResponsiveContainer>
+        <ChartNotes notes={notes?.pace} />
       </div>
 
       <div>
@@ -155,6 +158,7 @@ export function SessionCharts(
             />
           </ComposedChart>
         </ResponsiveContainer>
+        <ChartNotes notes={notes?.hr} />
       </div>
 
       <div>
@@ -207,6 +211,7 @@ export function SessionCharts(
           <span><i className="sw" style={{ background: "var(--walk)" }} /> Walk</span>
           <span><i className="sw" style={{ background: "var(--stop)" }} /> Stopped</span>
         </div>
+        <ChartNotes notes={notes?.cadence} />
       </div>
 
       {rows.some((r) => r.alt != null) && (
@@ -246,6 +251,7 @@ export function SessionCharts(
               />
             </ComposedChart>
           </ResponsiveContainer>
+          <ChartNotes notes={notes?.elevation} />
         </div>
       )}
     </div>

@@ -50,6 +50,7 @@ export interface Activity {
   segments?: Segment[];
   total_ascent_m?: number | null;
   total_descent_m?: number | null;
+  chart_notes?: ChartNotes;
 }
 
 export interface StreamPoint {
@@ -153,3 +154,13 @@ export interface SyncResult {
   errors: string[];
   activity_ids: number[];
 }
+
+export interface ChartNote {
+  tone: "good" | "warn" | "neutral";
+  text: string;
+}
+
+export type ChartNotes = Record<
+  "shape" | "route" | "pace" | "hr" | "cadence" | "elevation",
+  ChartNote[]
+>;
