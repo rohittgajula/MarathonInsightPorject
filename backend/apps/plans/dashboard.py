@@ -13,6 +13,8 @@ from apps.journal.models import DailyLog
 
 from . import insights, readiness
 from .models import Race
+
+RUN_SPORTS = ["running", "trail_running", "treadmill_running", "track_running", "virtual_run"]
 from .template import session_for, upcoming
 
 
@@ -38,8 +40,10 @@ def dashboard(request):
     tomorrow = today + dt.timedelta(days=1)
     race = Race.objects.filter(athlete=athlete, is_target=True).first()
 
+    # Walks, rides and gym sessions are real training but they are not runs, and
+    # putting them in a running-pace trend makes the trend meaningless.
     activities = list(
-        Activity.objects.filter(athlete=athlete)
+        Activity.objects.filter(athlete=athlete, sport__in=RUN_SPORTS)
         .select_related("metrics")
         .order_by("-started_at")[:40]
     )

@@ -50,7 +50,8 @@ class ActivityDetailSerializer(ActivityListSerializer):
         from .chart_notes import build
 
         previous = (
-            Activity.objects.filter(athlete_id=obj.athlete_id, started_at__lt=obj.started_at)
+            Activity.objects.filter(
+                athlete_id=obj.athlete_id, started_at__lt=obj.started_at, sport=obj.sport)
             .select_related("metrics")
             .order_by("-started_at")
             .first()

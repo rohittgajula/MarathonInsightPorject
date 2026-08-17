@@ -50,6 +50,14 @@ def _float(value) -> Optional[float]:
         return None
 
 
+def _humanise_status(phrase: str) -> str:
+    """'RECOVERY_1' -> 'Recovery'. Garmin suffixes a variant number per phrase."""
+    if not phrase:
+        return ""
+    base = phrase.rsplit("_", 1)[0] if phrase.rsplit("_", 1)[-1].isdigit() else phrase
+    return base.replace("_", " ").title()[:40]
+
+
 def fetch_day(client, day: dt.date) -> dict:
     """Collect one day's metrics. Each endpoint is isolated so one failure is partial."""
     iso = day.isoformat()
@@ -67,8 +75,12 @@ def fetch_day(client, day: dt.date) -> dict:
         daily = _dig(sleep, "dailySleepDTO", default={}) or {}
         out.update(
             sleep_seconds=_int(daily.get("sleepTimeSeconds")),
+            # This device exposes no `sleepNeed` object (that is a newer/Connect+
+            # feature). `sleepScores.totalDuration.optimalStart` is Garmin's own
+            # target duration for this athlete and is the closest equivalent.
             sleep_need_seconds=_int(_dig(daily, "sleepNeed", "actual"))
-                               or _int(daily.get("sleepNeedSeconds")),
+                               or _int(daily.get("sleepNeedSeconds"))
+                               or _int(_dig(daily, "sleepScores", "totalDuration", "optimalStart")),
             sleep_score=_int(_dig(daily, "sleepScores", "overall", "value")),
             deep_sleep_seconds=_int(daily.get("deepSleepSeconds")),
             rem_sleep_seconds=_int(daily.get("remSleepSeconds")),
@@ -97,9 +109,24 @@ def fetch_day(client, day: dt.date) -> dict:
         recent = _dig(status, "mostRecentTrainingStatus",
                       "latestTrainingStatusData", default={}) or {}
         first_device = next(iter(recent.values()), {}) if isinstance(recent, dict) else {}
-        out["training_status"] = str(first_device.get("trainingStatus") or "")[:40]
+        # `trainingStatus` is an opaque numeric code; the feedback phrase is the
+        # label Garmin itself shows ("RECOVERY_1" -> "Recovery").
+        phrase = str(first_device.get("trainingStatusFeedbackPhrase") or "")
+        out["training_status"] = _humanise_status(phrase) or str(
+            first_device.get("trainingStatus") or "")[:40]
+
+        # acwrPercent is the acute:chronic ratio as a percentage (29 -> 0.29).
         acwr = _dig(first_device, "acuteTrainingLoadDTO", default={}) or {}
-        out["acute_load"] = out.get("acute_load") or _float(acwr.get("dailyAcuteChronicWorkloadRatio"))
+        acute = _float(acwr.get("dailyTrainingLoadAcute"))
+        chronic = _float(acwr.get("dailyTrainingLoadChronic"))
+        percent = _float(acwr.get("acwrPercent"))
+        if acute is not None:
+            out["acute_load"] = acute
+        if chronic is not None:
+            out["chronic_load"] = chronic
+        elif acute is not None and percent:
+            # Derive chronic from the ratio when Garmin omits it outright.
+            out["chronic_load"] = round(acute / (percent / 100.0), 1)
 
     hrv = attempt("hrv", lambda: client.get_hrv_data(iso))
     if hrv:
