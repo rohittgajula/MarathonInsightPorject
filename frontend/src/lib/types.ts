@@ -265,3 +265,16 @@ export interface AchievementBoard {
   groups: { name: string; items: AchievementItem[] }[];
   recent: AchievementItem[];
 }
+
+export interface JournalEntry {
+  id: number;
+  entry_date: string;
+  title: string;
+  body: string;
+  activity: number | null;
+  activity_label: string;
+  race: number | null;
+  flags: { pain_area: string; illness: boolean };
+  created_at: string;
+  updated_at: string;
+}

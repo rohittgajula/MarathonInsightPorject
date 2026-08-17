@@ -627,3 +627,16 @@ td.num, th.num { text-align: right; }
   transition: width .6s var(--ease);
 }
 .ach.earned .ach-bar span { background: var(--good); }
+
+/* Used where the app needs to state something about handling or consequences —
+   credentials, or a signal it deliberately did not act on. */
+.note-block {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  padding: 11px 14px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  line-height: 1.55;
+}
+.note-block strong { color: var(--ink); }

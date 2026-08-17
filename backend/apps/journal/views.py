@@ -4,8 +4,9 @@ from rest_framework import viewsets
 from apps.athletes.mixins import AthleteScopedMixin
 from apps.athletes.permissions import IsAthleteOwner
 
+from .entries import JournalEntry
 from .models import DailyLog
-from .serializers import DailyLogSerializer
+from .serializers import DailyLogSerializer, JournalEntrySerializer
 
 
 class DailyLogViewSet(AthleteScopedMixin, viewsets.ModelViewSet):
@@ -29,3 +30,19 @@ class DailyLogViewSet(AthleteScopedMixin, viewsets.ModelViewSet):
             serializer.instance = existing
             return
         serializer.save(athlete=self.athlete, log_date=log_date)
+
+
+class JournalEntryViewSet(AthleteScopedMixin, viewsets.ModelViewSet):
+    """Long-form entries. Unlike DailyLog these are unconstrained: write as many as
+    you like, whenever, and nothing here changes the training plan."""
+
+    queryset = JournalEntry.objects.select_related("activity", "race").all()
+    serializer_class = JournalEntrySerializer
+    permission_classes = [IsAthleteOwner]
+    filterset_fields = ["entry_date", "activity", "race"]
+
+    def perform_create(self, serializer):
+        serializer.save(
+            athlete=self.athlete,
+            entry_date=serializer.validated_data.get("entry_date") or timezone.localdate(),
+        )
