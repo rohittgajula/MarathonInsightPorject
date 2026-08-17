@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { invalidateTrainingData } from "../lib/queryKeys";
 import type { Activity } from "../lib/types";
 
 interface UploadResult { activity: Activity | null; detail?: string; }
@@ -19,7 +20,7 @@ export function UploadCard() {
       return api.post<UploadResult>("/uploads/", form);
     },
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      invalidateTrainingData(queryClient);
       if (result.detail) setMessage(result.detail);
       if (result.activity) navigate(`/activity/${result.activity.id}`);
     },

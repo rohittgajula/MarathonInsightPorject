@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api/client";
+import { invalidateTrainingData } from "../lib/queryKeys";
 import type { DailyLog } from "../lib/types";
 
 interface Paged<T> { results: T[]; }
@@ -22,8 +23,7 @@ export function DailyLogBox() {
     mutationFn: (body: { text: string }) => api.post<DailyLog>("/logs/", body),
     onSuccess: () => {
       setText("");
-      queryClient.invalidateQueries({ queryKey: ["logs"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      invalidateTrainingData(queryClient);
     },
   });
 

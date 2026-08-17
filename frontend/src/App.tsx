@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { NavLink, Route, Routes } from "react-router-dom";
+import { NavLink, Route, Routes, useLocation } from "react-router-dom";
 import { api, clearToken, getToken } from "./api/client";
 import { Activities } from "./pages/Activities";
 import { ActivityDetail } from "./pages/ActivityDetail";
@@ -38,6 +38,7 @@ function SidebarRaceCard() {
 export default function App() {
   const [authed, setAuthed] = useState(!!getToken());
   usePointerGlow();
+  const location = useLocation();
 
   if (!authed) {
     return <div className="main"><Login onSuccess={() => setAuthed(true)} /></div>;
@@ -64,12 +65,14 @@ export default function App() {
       </aside>
 
       <main className="main">
+        <div className="page" key={location.pathname}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/activities" element={<Activities />} />
           <Route path="/activity/:id" element={<ActivityDetail />} />
           <Route path="/races" element={<Races />} />
         </Routes>
+        </div>
       </main>
     </div>
   );

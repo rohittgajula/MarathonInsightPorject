@@ -10,6 +10,8 @@
    because they encode "not running", so identity is additionally carried by legends,
    direct labels and the segment table. */
 
+html { scroll-behavior: smooth; }
+
 :root {
   --ground: #F5F6F8;
   --surface: #FFFFFF;
@@ -44,7 +46,17 @@
   --warn-soft: #F7E7DA;
   --band: rgba(14, 124, 102, .08);
 
-  --shadow: 0 1px 2px rgba(22, 26, 33, .05), 0 8px 24px -14px rgba(22, 26, 33, .22);
+  --shadow:
+    0 1px 1px rgba(22, 26, 33, .03),
+    0 2px 4px rgba(22, 26, 33, .03),
+    0 6px 12px rgba(22, 26, 33, .035),
+    0 14px 28px -12px rgba(22, 26, 33, .06);
+  --shadow-lift:
+    0 1px 2px rgba(22, 26, 33, .04),
+    0 4px 10px rgba(22, 26, 33, .05),
+    0 12px 26px rgba(22, 26, 33, .06),
+    0 28px 56px -20px rgba(22, 26, 33, .10);
+  --ease: cubic-bezier(.22, .61, .36, 1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -80,7 +92,16 @@
     --warn-soft: #33241A;
     --band: rgba(63, 191, 158, .11);
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -14px rgba(0, 0, 0, .65);
+    --shadow:
+      0 1px 1px rgba(0, 0, 0, .18),
+      0 2px 4px rgba(0, 0, 0, .16),
+      0 6px 14px rgba(0, 0, 0, .18),
+      0 16px 32px -14px rgba(0, 0, 0, .30);
+    --shadow-lift:
+      0 1px 2px rgba(0, 0, 0, .20),
+      0 4px 10px rgba(0, 0, 0, .22),
+      0 14px 30px rgba(0, 0, 0, .26),
+      0 32px 64px -22px rgba(0, 0, 0, .40);
   }
 }
 
@@ -116,7 +137,16 @@
   --warn-soft: #33241A;
   --band: rgba(63, 191, 158, .11);
 
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px -14px rgba(0, 0, 0, .65);
+  --shadow:
+    0 1px 1px rgba(0, 0, 0, .18),
+    0 2px 4px rgba(0, 0, 0, .16),
+    0 6px 14px rgba(0, 0, 0, .18),
+    0 16px 32px -14px rgba(0, 0, 0, .30);
+  --shadow-lift:
+    0 1px 2px rgba(0, 0, 0, .20),
+    0 4px 10px rgba(0, 0, 0, .22),
+    0 14px 30px rgba(0, 0, 0, .26),
+    0 32px 64px -22px rgba(0, 0, 0, .40);
 }
 
 * { box-sizing: border-box; }
@@ -171,6 +201,26 @@ a { color: var(--accent); }
 .side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
 
 .main { padding: 26px 30px 80px; max-width: 1120px; }
+
+/* Route change: content settles in rather than snapping. Keyed on pathname in App,
+   so it replays per navigation. */
+.page { animation: page-in .42s var(--ease) both; }
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Cards stagger in behind the page so a dense screen does not arrive all at once. */
+.page .card { animation: card-in .5s var(--ease) both; }
+.page .card:nth-child(1) { animation-delay: .02s }
+.page .card:nth-child(2) { animation-delay: .06s }
+.page .card:nth-child(3) { animation-delay: .10s }
+.page .card:nth-child(4) { animation-delay: .14s }
+.page .card:nth-child(n+5) { animation-delay: .18s }
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(10px) scale(.995); }
+  to   { opacity: 1; transform: none; }
+}
 
 /* Sidebar narrows before it collapses, so the layout degrades in two steps rather
    than jumping straight from 232px of chrome to none. */
@@ -238,13 +288,16 @@ p { margin: 0; color: var(--ink-soft); }
               var(--glow-a), transparent 60%);
 }
 .card:hover::after { opacity: 1; }
+.card::after { transition: opacity .38s var(--ease); }
 .card {
-  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  transition: transform .32s var(--ease), box-shadow .32s var(--ease),
+              border-color .32s var(--ease);
+  will-change: transform;
 }
 .card:hover {
-  transform: translateY(-2px);
+  transform: translateY(-3px);
   border-color: var(--glass-edge);
-  box-shadow: 0 1px 2px rgba(0,0,0,.16), 0 22px 44px -20px rgba(0,0,0,.55);
+  box-shadow: var(--shadow-lift);
 }
 /* Cards holding a chart must not lift — it drags the SVG and the tooltip with it. */
 .card.static:hover { transform: none; }
@@ -252,6 +305,8 @@ p { margin: 0; color: var(--ink-soft); }
 @media (prefers-reduced-motion: reduce) {
   .card, .card::after { transition: none; }
   .card:hover { transform: none; }
+  .page, .page .card { animation: none; }
+  * { scroll-behavior: auto !important; }
 }
 
 .card::before {
@@ -278,17 +333,17 @@ button, .btn {
 }
 button.ghost { background: transparent; color: var(--ink-soft); border: 1px solid var(--rule); }
 button.ghost:hover { background: var(--surface-2); color: var(--ink); }
-button { transition: transform .14s ease, filter .14s ease, box-shadow .14s ease; }
+button { transition: transform .22s var(--ease), filter .22s var(--ease), box-shadow .22s var(--ease); }
 button:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
 button:active:not(:disabled) { transform: translateY(0); }
 
-tbody tr { transition: background .14s ease; }
+tbody tr { transition: background .24s var(--ease); }
 tbody tr:hover { background: var(--accent-soft); }
 
-.side-nav a { transition: background .14s ease, color .14s ease, transform .14s ease; }
+.side-nav a { transition: background .24s var(--ease), color .24s var(--ease), transform .24s var(--ease); }
 .side-nav a:hover { transform: translateX(2px); }
 
-.insight { transition: background .16s ease; border-radius: 8px; }
+.insight { transition: background .26s var(--ease); border-radius: 8px; }
 .insight:hover { background: var(--accent-soft); }
 
 /* Status bulb for the Garmin control in the header. */
@@ -366,7 +421,7 @@ td.num, th.num { text-align: right; }
   border-radius: 16px; padding: 26px 28px;
   background: linear-gradient(115deg, #3B2C93 0%, #5847B4 55%, #6250C4 100%);
   color: #fff;
-  box-shadow: 0 18px 40px -22px var(--accent-2);
+  box-shadow: 0 4px 12px -4px rgba(59, 44, 147, .30), 0 20px 48px -24px rgba(59, 44, 147, .45);
 }
 .hero::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api/client";
+import { invalidateTrainingData } from "../lib/queryKeys";
 import { dateStr, durStr } from "../lib/format";
 import type { Race } from "../lib/types";
 
@@ -26,10 +27,8 @@ export function Races() {
     queryFn: () => api.get<Paged<Race>>("/races/"),
   });
 
-  const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["races"] });
-    queryClient.invalidateQueries({ queryKey: ["targetRace"] });
-  };
+  // Changing the race moves every plan date, so the whole derived layer refreshes.
+  const invalidate = () => invalidateTrainingData(queryClient);
 
   const create = useMutation({
     mutationFn: (body: unknown) => api.post<Race>("/races/", body),

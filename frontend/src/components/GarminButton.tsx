@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ApiError } from "../api/client";
+import { invalidateTrainingData } from "../lib/queryKeys";
 import type { GarminStatus, SyncResult } from "../lib/types";
 
 /* Compact header control: a status bulb plus one button. State is re-probed rather
@@ -21,8 +22,7 @@ export function GarminButton() {
     mutationFn: () => api.post<SyncResult>("/garmin/sync/", { limit: 20 }),
     onSuccess: (r) => {
       setMessage(`${r.imported} imported · ${r.skipped} already had`);
-      ["dashboard", "activities", "garminStatus"].forEach((k) =>
-        queryClient.invalidateQueries({ queryKey: [k] }));
+      invalidateTrainingData(queryClient);
     },
     onError: (err: ApiError) =>
       setMessage(

@@ -75,6 +75,67 @@ def _steady_state_drift(activity, segment) -> Optional[int]:
     return int(statistics.median(late) - statistics.median(early))
 
 
+def _emit(notes: dict) -> dict[str, list[dict]]:
+    return {k: [{"tone": n.tone, "text": n.text} for n in v] for k, v in notes.items()}
+
+
+def _non_running_notes(activity, athlete, metrics, walks, notes) -> dict[str, list[dict]]:
+    """Read a session with no running in it — a walk, a ride, a gym session."""
+    moving = metrics.walk_time_s + metrics.stop_time_s
+    label = "walk" if walks else activity.sport.replace("_", " ")
+
+    notes["shape"].append(Note(
+        "neutral",
+        f"No running detected in this {label}. On this plan that is fine — walking and "
+        "cross-training build the aerobic base without the impact load that injures new "
+        "runners. It simply is not measured against your run targets.",
+    ))
+
+    if moving > 0:
+        notes["shape"].append(Note(
+            "good" if moving >= 1800 else "neutral",
+            f"{_mins(moving)} on your feet"
+            + (f" covering {activity.total_distance_m / 1000:.2f} km. " if activity.total_distance_m else ". ")
+            + ("That is a solid aerobic session in its own right."
+               if moving >= 1800 else
+               "Short sessions still count towards the habit, which is what matters most early on."),
+        ))
+
+    if walks:
+        paces = [w.avg_pace_s_per_km for w in walks if w.avg_pace_s_per_km]
+        if paces:
+            fastest = min(paces)
+            notes["pace"].append(Note(
+                "neutral",
+                f"Best walking pace was {_pace(fastest)}. Brisk walking around 9:00–10:00/km "
+                "sits close to your easy running band, which is why walk breaks work so "
+                "well as recovery rather than as stopping.",
+            ))
+
+    if activity.avg_hr:
+        if activity.avg_hr <= athlete.hr_easy_max:
+            notes["hr"].append(Note(
+                "good",
+                f"Average heart rate {activity.avg_hr} bpm — inside your easy range. "
+                "Exactly what a recovery day should look like.",
+            ))
+        else:
+            notes["hr"].append(Note(
+                "neutral",
+                f"Average heart rate {activity.avg_hr} bpm, above your easy ceiling of "
+                f"{athlete.hr_easy_max}. Brisk, but on a non-running day that is not a problem.",
+            ))
+
+    ascent = activity.total_ascent_m
+    if ascent and activity.total_distance_m:
+        notes["elevation"].append(Note(
+            "neutral",
+            f"{ascent:.0f} m of climbing over {activity.total_distance_m / 1000:.2f} km.",
+        ))
+
+    return _emit(notes)
+
+
 def build(activity, athlete, previous=None) -> dict[str, list[dict]]:
     """previous: the athlete's activity immediately before this one, or None."""
     metrics = getattr(activity, "metrics", None)
@@ -89,6 +150,12 @@ def build(activity, athlete, previous=None) -> dict[str, list[dict]]:
 
     runs = [s for s in segments if s.kind == "run"]
     walks = [s for s in segments if s.kind == "walk"]
+
+    # Almost every note below reads running data, so a walk or a ride would come back
+    # nearly blank. Those sessions get their own read instead of an empty page — they
+    # are real training on this plan, just measured differently.
+    if not runs:
+        return _non_running_notes(activity, athlete, metrics, walks, notes)
 
     # ---------------- session shape ----------------
     if runs:
@@ -321,4 +388,4 @@ def build(activity, athlete, previous=None) -> dict[str, list[dict]]:
                 "than pace.",
             ))
 
-    return {key: [{"tone": n.tone, "text": n.text} for n in value] for key, value in notes.items()}
+    return _emit(notes)
