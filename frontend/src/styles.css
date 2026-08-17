@@ -640,3 +640,14 @@ td.num, th.num { text-align: right; }
   line-height: 1.55;
 }
 .note-block strong { color: var(--ink); }
+
+.step-row {
+  display: flex; gap: 12px; padding: 11px 0;
+  border-bottom: 1px solid var(--rule-soft);
+}
+.step-row:last-child { border-bottom: 0; }
+.step-row:first-child { padding-top: 0; }
+
+.target-row { padding: 10px 0; border-bottom: 1px solid var(--rule-soft); }
+.target-row:last-child { border-bottom: 0; }
+.target-row:first-child { padding-top: 0; }

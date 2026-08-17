@@ -12,11 +12,43 @@ class DailyLogSerializer(serializers.ModelSerializer):
         model = DailyLog
         fields = [
             "id", "log_date", "text",
-            "alcohol_units", "sleep_hours", "felt",
-            "created_at",
+            "alcohol_units", "sleep_hours", "sleep_quality", "felt",
+            "pain_area", "illness", "stressed", "travel",
+            "detected", "created_at",
         ]
         # Structured fields are derived from `text` on save, never posted directly.
-        read_only_fields = ["id", "alcohol_units", "sleep_hours", "felt", "created_at"]
+        read_only_fields = [
+            "id", "alcohol_units", "sleep_hours", "sleep_quality", "felt",
+            "pain_area", "illness", "stressed", "travel", "detected", "created_at",
+        ]
+
+    detected = serializers.SerializerMethodField()
+
+    def get_detected(self, obj) -> list:
+        """What the parser actually took from the text.
+
+        Returned so the UI can say 'nothing detected' out loud. Silently extracting
+        nothing looked identical to the feature being broken.
+        """
+        found = []
+        if obj.sleep_hours is not None:
+            found.append(f"{obj.sleep_hours:g} h sleep")
+        elif obj.sleep_quality:
+            found.append({"short": "short night", "poor": "slept badly",
+                          "good": "slept well"}[obj.sleep_quality])
+        if obj.alcohol_units is not None:
+            found.append(f"{obj.alcohol_units:g} units alcohol")
+        if obj.pain_area:
+            found.append(f"{obj.pain_area.replace('_', ' ')} pain")
+        if obj.illness:
+            found.append("unwell")
+        if obj.stressed:
+            found.append("stress")
+        if obj.travel:
+            found.append("travel")
+        if obj.felt:
+            found.append(f"felt {obj.felt}")
+        return found
 
 
 class JournalEntrySerializer(serializers.ModelSerializer):

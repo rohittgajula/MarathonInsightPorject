@@ -11,6 +11,7 @@ import { Calendar } from "./pages/Calendar";
 import { Journal } from "./pages/Journal";
 import { Settings } from "./pages/Settings";
 import { Races } from "./pages/Races";
+import { Technique } from "./pages/Technique";
 import { Warmup } from "./pages/Warmup";
 import { usePointerGlow } from "./lib/usePointerGlow";
 import type { Race } from "./lib/types";
@@ -20,6 +21,7 @@ const NAV = [
   { to: "/calendar", label: "Calendar", end: false },
   { to: "/activities", label: "Activities", end: false },
   { to: "/warmup", label: "Warm-up", end: false },
+  { to: "/technique", label: "How to run", end: false },
   { to: "/journal", label: "Journal", end: false },
   { to: "/achievements", label: "Achievements", end: false },
   { to: "/settings", label: "Settings", end: false },
@@ -82,6 +84,7 @@ export default function App() {
           <Route path="/activity/:id" element={<ActivityDetail />} />
           <Route path="/calendar" element={<Calendar />} />
         <Route path="/warmup" element={<Warmup />} />
+        <Route path="/technique" element={<Technique />} />
         <Route path="/journal" element={<Journal />} />
         <Route path="/achievements" element={<Achievements />} />
         <Route path="/settings" element={<Settings />} />

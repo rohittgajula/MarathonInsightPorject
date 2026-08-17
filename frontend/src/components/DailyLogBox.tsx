@@ -64,11 +64,13 @@ export function DailyLogBox() {
             <div key={l.id} className="stack" style={{ gap: 4 }}>
               <div className="row" style={{ gap: 7 }}>
                 <span className="faint mono">{l.log_date}</span>
-                {l.alcohol_units != null && (
-                  <span className="chip">{l.alcohol_units} {l.alcohol_units === 1 ? "unit" : "units"}</span>
+                {(l.detected ?? []).map((d) => (
+                  <span key={d} className="chip good">{d}</span>
+                ))}
+                {(l.detected ?? []).length === 0 && (
+                  // Silence used to look identical to the feature being broken.
+                  <span className="chip warn">nothing detected</span>
                 )}
-                {l.sleep_hours != null && <span className="chip">{l.sleep_hours} h sleep</span>}
-                {l.felt && <span className="chip">{l.felt}</span>}
               </div>
               <p style={{ fontSize: 13 }}>{l.text}</p>
             </div>

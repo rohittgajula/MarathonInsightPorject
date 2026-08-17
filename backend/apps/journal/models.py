@@ -29,6 +29,11 @@ class DailyLog(OwnedByAthlete):
     # training blocks than anything else, and it is always mentioned in passing
     # before it becomes serious. The body part is captured so a recurring niggle in
     # one place is visible rather than buried in prose.
+    # People describe sleep in words far more often than in hours. "slept late",
+    # "up half the night", "couldn't switch off" all carry the same signal as a
+    # number, and ignoring them made the log feel broken when it was merely literal.
+    sleep_quality = models.CharField(max_length=12, blank=True, help_text="short | poor | good")
+
     pain_area = models.CharField(max_length=24, blank=True)
     illness = models.BooleanField(default=False)
     stressed = models.BooleanField(default=False)
@@ -54,6 +59,7 @@ class DailyLog(OwnedByAthlete):
         self.alcohol_units = extracted["alcohol_units"]
         self.sleep_hours = extracted["sleep_hours"]
         self.felt = extracted["felt"]
+        self.sleep_quality = extracted["sleep_quality"]
         self.pain_area = extracted["pain_area"]
         self.illness = extracted["illness"]
         self.stressed = extracted["stressed"]
@@ -61,7 +67,7 @@ class DailyLog(OwnedByAthlete):
         super().save(*args, **kwargs)
 
 
-EXTRACTION_VERSION = 2
+EXTRACTION_VERSION = 3
 
 # Rough standard-drink equivalents. Deliberately coarse — the goal is "did you drink
 # and roughly how much", which is all the correlation analysis can support anyway.
@@ -88,6 +94,35 @@ BODY_PARTS = {
     "back": ["back", "lower back"],
     "it_band": ["it band", "itb", "iliotibial"],
 }
+
+# Qualitative sleep, as regexes rather than fixed phrases. People write "sleeping a
+# bit late" and "went to bed really late", so up to two filler words are allowed
+# inside each pattern — exact substrings missed the way anyone actually types.
+_FILL = r"(?:\w+\s+){0,2}"
+
+SLEEP_SHORT = [
+    # sle(?:ep|pt) because "slept" is not "sleep" plus a suffix — a plain sleep\w*
+    # silently missed the single commonest way people write this.
+    rf"sle(?:ep|pt)\w*\s+{_FILL}late",   # slept late / sleeping a bit late
+    rf"(?:up|awake)\s+{_FILL}late",       # up late / up really late
+    rf"(?:went to bed|bed)\s+{_FILL}late",
+    r"late\s+night", r"stayed up", r"short night", r"early start",
+    rf"(?:not much|little|hardly any|barely any)\s+sleep",
+    r"(?:hardly|barely)\s+slept",
+    rf"only\s+{_FILL}hours?\s+(?:of\s+)?sleep",
+]
+SLEEP_POOR = [
+    r"(?:did ?n[o']?t|could ?n[o']?t)\s+sleep",
+    rf"sle(?:ep|pt)\w*\s+{_FILL}(?:badly|poorly|terribly)",
+    r"(?:bad|poor|broken|rough|terrible|awful)\s+(?:night|sleep)",
+    r"rough night", r"restless", r"kept waking", r"tossing and turning",
+    r"sleep was (?:bad|poor|terrible|awful)",
+]
+SLEEP_GOOD = [
+    rf"slept\s+{_FILL}(?:well|great|brilliantly)",
+    r"(?:good|great|solid|deep)\s+sleep", r"slept like a log",
+    r"(?:well|fully)\s+rested",
+]
 
 PAIN_WORDS = ["pain", "hurt", "hurts", "sore", "ache", "aches", "aching", "tight",
               "tightness", "niggle", "twinge", "stiff", "strain", "sprain", "swollen"]
@@ -131,7 +166,9 @@ def extract(text: str) -> dict:
     precisely so that upgrade can be applied retroactively.
     """
     if not text:
-        return {"alcohol_units": None, "sleep_hours": None, "felt": ""}
+        return {"alcohol_units": None, "sleep_hours": None, "sleep_quality": "",
+                "felt": "", "pain_area": "", "illness": False,
+                "stressed": False, "travel": False}
 
     lower = text.lower()
 
@@ -209,12 +246,23 @@ def extract(text: str) -> dict:
             if pain_area:
                 break
 
+    # Only consulted when no number was given — an explicit "slept 7 hours" beats
+    # any adjective in the same sentence.
+    sleep_quality = ""
+    if sleep is None:
+        if any(re.search(p, lower) for p in SLEEP_POOR):
+            sleep_quality = "poor"
+        elif any(re.search(p, lower) for p in SLEEP_SHORT):
+            sleep_quality = "short"
+        elif any(re.search(p, lower) for p in SLEEP_GOOD):
+            sleep_quality = "good"
+
     illness = any(re.search(rf"\b{re.escape(w)}\b", lower) for w in ILLNESS_WORDS)
     stressed = any(re.search(rf"\b{re.escape(w)}\b", lower) for w in STRESS_WORDS)
     travel = any(re.search(rf"\b{re.escape(w)}\b", lower) for w in TRAVEL_WORDS)
 
     return {
-        "alcohol_units": alcohol, "sleep_hours": sleep, "felt": felt,
-        "pain_area": pain_area, "illness": illness,
+        "alcohol_units": alcohol, "sleep_hours": sleep, "sleep_quality": sleep_quality,
+        "felt": felt, "pain_area": pain_area, "illness": illness,
         "stressed": stressed, "travel": travel,
     }

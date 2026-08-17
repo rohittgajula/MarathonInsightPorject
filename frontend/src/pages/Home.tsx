@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
 import { GarminButton } from "../components/GarminButton";
+import { SessionPlan } from "../components/SessionPlan";
 import { TrendCharts } from "../components/TrendCharts";
 import { WellnessCharts } from "../components/WellnessCharts";
 import { dateStr, durStr, paceStr } from "../lib/format";
@@ -59,6 +60,8 @@ export function Home() {
         )}
       </div>
 
+
+      <SessionPlan steps={data.session_steps ?? []} targets={data.session_targets ?? []} />
 
       <div className="grid-2">
         <div className="card stack" style={{ gap: 0 }}>

@@ -107,8 +107,22 @@ export interface DailyLog {
   text: string;
   alcohol_units: number | null;
   sleep_hours: number | null;
+  sleep_quality: string;
   felt: string;
+  pain_area: string;
+  illness: boolean;
+  stressed: boolean;
+  travel: boolean;
+  detected: string[];
   created_at: string;
+}
+
+export interface SessionStep { label: string; detail: string; duration: string; }
+export interface SessionTarget { label: string; value: string; note: string; }
+export interface FormCue { key: string; title: string; cue: string; why: string; }
+export interface TechniqueGuide {
+  cues: FormCue[];
+  troubleshooting: { problem: string; answer: string }[];
 }
 
 export interface PlannedSession {
@@ -146,6 +160,8 @@ export interface Dashboard {
   insights: { tone: string; headline: string; detail: string }[];
   trend: TrendPoint[];
   wellness: WellnessPoint[];
+  session_steps: SessionStep[];
+  session_targets: SessionTarget[];
   activity_count: number;
   log_count: number;
   garmin_connected: boolean;

@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from apps.activities.models import Activity
 from apps.journal.models import DailyLog
 
-from . import insights, readiness
+from . import coaching, insights, readiness
 from .models import Race
 
 RUN_SPORTS = ["running", "trail_running", "treadmill_running", "track_running", "virtual_run"]
@@ -102,8 +102,13 @@ def dashboard(request):
         )
     ]
 
+    last_run = next((a for a in activities if a.sport in RUN_SPORTS), None)
+    coach_metrics = {"last_avg_hr": last_run.avg_hr if last_run else None}
+
     return Response({
         "wellness": wellness,
+        "session_steps": coaching.steps_for(tomorrow_session, athlete),
+        "session_targets": coaching.targets_for(tomorrow_session, athlete, coach_metrics),
         "today": _session_dict(today_session) if today_session else None,
         "tomorrow": _session_dict(tomorrow_session) if tomorrow_session else None,
         "week": [_session_dict(s) for s in week],

@@ -15,6 +15,7 @@ from apps.journal.wellness import DailyMetrics
 from . import readiness
 from .models import Race
 from .template import session_for
+from .coaching import FORM_CUES, TROUBLESHOOTING
 from .warmup import routine
 
 
@@ -140,3 +141,11 @@ def calendar(request):
 def warmup(request):
     _athlete(request)
     return Response(routine())
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def technique(request):
+    """Running form and troubleshooting — the things a plan assumes you already know."""
+    _athlete(request)
+    return Response({"cues": FORM_CUES, "troubleshooting": TROUBLESHOOTING})

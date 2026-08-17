@@ -105,6 +105,12 @@ def evaluate(log, metrics=None) -> Adjustment:
     # Pain and illness are stop signals rather than scale-back signals. Running
     # through a niggle is how a two-day problem becomes a six-week one, and the plan
     # has enough buffer to lose a fortnight and still make the start line.
+    quality = getattr(log, "sleep_quality", "")
+    if measured_sleep is None and log.sleep_hours is None and quality in ("short", "poor"):
+        reasons.append(
+            "you described a short night" if quality == "short" else "you slept badly"
+        )
+
     if getattr(log, "pain_area", ""):
         area = log.pain_area.replace("_", " ")
         reasons.append(f"you reported {area} pain")
