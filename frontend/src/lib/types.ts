@@ -315,7 +315,7 @@ export interface WeekReview {
   pace_discipline_pct: number | null;
   avg_sleep_h: number | null; sleep_debt_h: number | null;
   niggles: string[]; off_plan_days: string[]; missed_days: string[];
-  verdict: string; verdict_reason: string; in_progress: boolean;
+  verdict: string; verdict_reason: string; in_progress: boolean; before_plan: boolean;
   days: { date: string; planned: string; kind: string; done: boolean; prescribed: boolean }[];
 }
 export interface WeeklyResponse { weeks: WeekReview[]; }

@@ -49,6 +49,7 @@ class WeekReview:
     verdict_reason: str = ""
     days: list = field(default_factory=list)
     in_progress: bool = False
+    before_plan: bool = False
 
 
 def week_bounds(any_date: dt.date) -> tuple[dt.date, dt.date]:
@@ -84,11 +85,24 @@ def review(athlete, any_date: dt.date, race=None) -> WeekReview:
             sessions.append(session_for(race.race_date, cursor, athlete))
             cursor += dt.timedelta(days=1)
 
-    prescribed = [s for s in sessions if s.kind in ("intervals", "long", "jog", "race")]
-    plan_week = prescribed[0].plan_week if prescribed else (sessions[0].plan_week if sessions else None)
-    phase = prescribed[0].phase if prescribed else (sessions[0].phase if sessions else "")
+    # A week entirely before the plan's start gets no prescription and no verdict.
+    # The clamped template would otherwise report every earlier week as "week 1 of 17"
+    # and then mark it failed for missing sessions that were never set.
+    before_plan = bool(sessions) and all(s.before_plan for s in sessions)
+
+    prescribed = [] if before_plan else [
+        s for s in sessions if s.kind in ("intervals", "long", "jog", "race")
+    ]
+    plan_week = None if before_plan else (
+        prescribed[0].plan_week if prescribed
+        else (sessions[0].plan_week if sessions else None)
+    )
+    phase = "Before the plan" if before_plan else (
+        prescribed[0].phase if prescribed else (sessions[0].phase if sessions else "")
+    )
 
     result = WeekReview(start=start, end=end, plan_week=plan_week, phase=phase)
+    result.before_plan = before_plan
     result.planned_sessions = len(prescribed)
     result.planned_run_minutes = sum(s.run_minutes for s in prescribed)
     result.planned_distance_km = sum(s.distance_km for s in prescribed)
@@ -136,10 +150,10 @@ def review(athlete, any_date: dt.date, race=None) -> WeekReview:
 
     result.days = [{
         "date": s.date,
-        "planned": s.title,
+        "planned": "—" if before_plan else s.title,
         "kind": s.kind,
         "done": s.date in run_dates,
-        "prescribed": s.kind in ("intervals", "long", "jog", "race"),
+        "prescribed": (not before_plan) and s.kind in ("intervals", "long", "jog", "race"),
     } for s in sessions]
 
     # A week still in progress cannot be judged on sessions not yet due.
@@ -151,6 +165,14 @@ def review(athlete, any_date: dt.date, race=None) -> WeekReview:
 
 def _decide(week: WeekReview) -> None:
     """Hold, repeat or progress. Conservative on purpose."""
+    if week.before_plan:
+        week.verdict = "before_plan"
+        week.verdict_reason = (
+            "This week is before your plan started, so there was nothing prescribed. "
+            "Shown for context only."
+        )
+        return
+
     if week.in_progress:
         remaining = week.planned_sessions - week.completed_sessions
         week.verdict = "in_progress"

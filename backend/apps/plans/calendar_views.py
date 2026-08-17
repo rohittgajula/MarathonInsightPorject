@@ -171,7 +171,7 @@ def weekly(request):
             "avg_sleep_h": w.avg_sleep_h, "sleep_debt_h": w.sleep_debt_h,
             "niggles": w.niggles, "verdict": w.verdict, "verdict_reason": w.verdict_reason,
             "off_plan_days": w.off_plan_days, "missed_days": w.missed_days,
-            "in_progress": w.in_progress,
+            "in_progress": w.in_progress, "before_plan": w.before_plan,
             "days": w.days,
         } for w in weeks
     ]})

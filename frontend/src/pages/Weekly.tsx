@@ -15,6 +15,7 @@ const VERDICT: Record<string, { label: string; tone: string }> = {
   hold: { label: "Hold here", tone: "warn" },
   repeat: { label: "Repeat the week", tone: "warn" },
   in_progress: { label: "In progress", tone: "accent" },
+  before_plan: { label: "Before the plan", tone: "" },
   none: { label: "No plan", tone: "" },
 };
 
@@ -42,10 +43,14 @@ function Week({ week }: { week: WeekReview }) {
         <div>
           <div className="eyebrow">
             {dateStr(week.start).replace(/,.*/, "")} – {dateStr(week.end).replace(/,.*/, "")}
-            {week.plan_week && ` · week ${week.plan_week} of 17 · ${week.phase}`}
+            {week.plan_week ? ` · week ${week.plan_week} of 17 · ${week.phase}` : ` · ${week.phase}`}
           </div>
           <h2 style={{ marginTop: 3 }}>
-            {week.completed_sessions} of {week.planned_sessions} sessions
+            {week.before_plan
+              ? week.actual_distance_km > 0
+                ? `${week.actual_distance_km} km run`
+                : "No runs recorded"
+              : `${week.completed_sessions} of ${week.planned_sessions} sessions`}
           </h2>
         </div>
         <span className={`chip ${v.tone}`}>{v.label}</span>
@@ -55,9 +60,10 @@ function Week({ week }: { week: WeekReview }) {
 
       <div className="grid">
         <Stat label="Running time" actual={`${week.actual_run_minutes}`}
-              planned={`${week.planned_run_minutes}`} unit=" min" />
+              planned={week.before_plan ? undefined : `${week.planned_run_minutes}`} unit=" min" />
         <Stat label="Distance" actual={`${week.actual_distance_km}`}
-              planned={week.planned_distance_km ? `${week.planned_distance_km}` : undefined} unit=" km" />
+              planned={!week.before_plan && week.planned_distance_km
+                ? `${week.planned_distance_km}` : undefined} unit=" km" />
         <Stat label="Longest unbroken"
               actual={week.longest_run_s ? durStr(week.longest_run_s) : "—"} />
         <Stat label="Pace discipline"
@@ -80,6 +86,7 @@ function Week({ week }: { week: WeekReview }) {
         </p>
       )}
 
+      {!week.before_plan && (
       <div className="week-strip">
         {week.days.map((d) => (
           <div key={d.date}
@@ -92,6 +99,7 @@ function Week({ week }: { week: WeekReview }) {
           </div>
         ))}
       </div>
+      )}
     </div>
   );
 }

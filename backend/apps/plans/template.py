@@ -70,6 +70,10 @@ class PlannedSession:
     # Set when a daily log moves the session off the template.
     adjusted: bool = False
     adjust_reason: str = ""
+    # True for dates earlier than the plan's own start. The table is clamped so those
+    # dates still return something sensible, but they are not week 1 — the plan simply
+    # had not begun, and judging them against it is meaningless.
+    before_plan: bool = False
 
 
 def _fmt(minutes: float) -> str:
@@ -111,6 +115,7 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
     base = dict(
         date=on, plan_week=plan_week, weeks_out=weeks_out, phase=phase, note=note,
         target_pace=easy_pace_label, target_hr=hr_label,
+        before_plan=weeks_out > 16,
     )
 
     if on == race_date:
