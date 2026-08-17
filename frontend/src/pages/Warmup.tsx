@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { api } from "../api/client";
 import { BodyDiagram } from "../components/BodyDiagram";
+import { ExerciseAnimation } from "../components/ExerciseAnimation";
 import type { WarmupRoutine } from "../lib/types";
 
 /* Hovering an exercise highlights the muscles it targets on the diagram, so "which
@@ -67,8 +68,13 @@ export function Warmup() {
                 <span className="chip accent">{e.duration}</span>
               </div>
 
-              <p style={{ fontSize: 13.5 }}><strong>How:</strong> {e.how}</p>
-              <p className="faint" style={{ fontSize: 13 }}>{e.why}</p>
+              <div className="ex-row">
+                <ExerciseAnimation exerciseKey={e.key} />
+                <div className="stack" style={{ gap: 6 }}>
+                  <p style={{ fontSize: 13.5 }}><strong>How:</strong> {e.how}</p>
+                  <p className="faint" style={{ fontSize: 13 }}>{e.why}</p>
+                </div>
+              </div>
 
               <div className="row" style={{ gap: 6 }}>
                 {e.muscles.map((m) => (

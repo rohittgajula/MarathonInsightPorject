@@ -70,16 +70,28 @@ def calendar(request):
         )
     }
 
-    latest_log = readiness.log_for(athlete, today)
-    latest_metrics = readiness.metrics_for(athlete, today)
-    tomorrow = today + dt.timedelta(days=1)
-
     days = []
     cursor = start
     while cursor <= end:
         session = session_for(race.race_date, cursor, athlete) if race else None
-        if session and cursor == tomorrow:
-            readiness.apply(session, latest_log, latest_metrics)
+
+        # The night before is what governs a session, so a note written on day D
+        # shapes day D+1 — but only where that night actually has data.
+        #
+        # Tomorrow is the one day allowed to fall back to "most recent", because for
+        # tomorrow that genuinely means last night. Every later day requires its own
+        # preceding row: projecting tonight's sleep onto a session three weeks out
+        # would mark the whole calendar "shortened" off a single bad night.
+        if session and cursor >= today:
+            prior = cursor - dt.timedelta(days=1)
+            if cursor == today + dt.timedelta(days=1):
+                log = logs_by_day.get(prior) or readiness.log_for(athlete, prior)
+                wellness_prior = metrics_by_day.get(prior) or readiness.metrics_for(athlete, prior)
+            else:
+                log = logs_by_day.get(prior)
+                wellness_prior = metrics_by_day.get(prior)
+            if log or wellness_prior:
+                readiness.apply(session, log, wellness_prior)
 
         done = activities.get(cursor, [])
         wellness = metrics_by_day.get(cursor)

@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { DayNote } from "../components/DayNote";
+import { WeekPlanner } from "../components/WeekPlanner";
 import { durStr, paceStr } from "../lib/format";
 import type { CalendarDay, CalendarResponse } from "../lib/types";
 
@@ -62,6 +64,8 @@ export function Calendar() {
           <button className="ghost" onClick={() => setMonth(startOfMonth(new Date()))}>Today</button>
         </div>
       </div>
+
+      <WeekPlanner />
 
       <div className="card static">
         {isLoading && <p className="muted">Loading…</p>}
@@ -203,6 +207,8 @@ function DayDetail({ day }: { day: CalendarDay }) {
       {!p && day.activities.length === 0 && (
         <p className="faint">Nothing planned or recorded for this day.</p>
       )}
+
+      <DayNote date={day.date} existing={day.log} />
     </div>
   );
 }

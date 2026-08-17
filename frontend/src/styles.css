@@ -509,3 +509,40 @@ td.num, th.num { text-align: right; }
   display: flex; align-items: center; justify-content: center;
   background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 13px;
 }
+
+/* ---- week planner ---- */
+.week-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.week-day { display: flex; flex-direction: column; gap: 5px; }
+.week-day select { padding: 8px 6px; font-size: 12px; }
+@media (max-width: 720px) {
+  .week-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .week-day select { font-size: 13px; }
+}
+
+/* ---- exercise animations ----
+   Every loop is a slow ease-in-out so the movement reads as controlled, which is how
+   these should actually be performed; fast loops teach the wrong tempo. */
+.ex-anim { width: 100%; max-width: 132px; height: auto; display: block; }
+
+.anim-ankle   { animation: ankle 3.2s linear infinite; }
+.anim-swing   { animation: swing 2.6s ease-in-out infinite; }
+.anim-lateral { animation: lateral 2.6s ease-in-out infinite; }
+.anim-bridge  { animation: bridge 3s ease-in-out infinite; }
+.anim-calf    { animation: calf 2.8s ease-in-out infinite; }
+.anim-walk-a  { animation: stride 1.2s ease-in-out infinite; }
+.anim-walk-b  { animation: stride 1.2s ease-in-out infinite reverse; }
+
+@keyframes ankle   { to { transform: rotate(360deg); } }
+@keyframes swing   { 0%,100% { transform: rotate(-28deg) } 50% { transform: rotate(30deg) } }
+@keyframes lateral { 0%,100% { transform: rotate(18deg) } 50% { transform: rotate(-26deg) } }
+@keyframes bridge  { 0%,100% { transform: translateY(10px) } 50% { transform: translateY(-6px) } }
+@keyframes calf    { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-11px) } }
+@keyframes stride  { 0%,100% { transform: rotate(-16deg) } 50% { transform: rotate(16deg) } }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-ankle, .anim-swing, .anim-lateral,
+  .anim-bridge, .anim-calf, .anim-walk-a, .anim-walk-b { animation: none; }
+}
+
+.ex-row { display: flex; gap: 16px; align-items: flex-start; }
+@media (max-width: 560px) { .ex-row { flex-direction: column; align-items: center; } }

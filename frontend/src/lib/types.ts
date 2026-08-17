@@ -77,6 +77,9 @@ export interface Athlete {
   hr_easy_max: number;
   hr_ceiling: number;
   run_cadence_threshold: number;
+  training_days: Record<string, string>;
+  running_days_per_week: number;
+  day_type_labels: Record<string, string>;
   garmin_connected: boolean;
   garmin_last_sync: string | null;
 }

@@ -42,12 +42,12 @@ PHASE = {
     range(0, 2): "Taper & race",
 }
 
-# Tue / Thu intervals, Sunday long run. Monday is always rest — new runners get
-# injured by frequency, so a fourth running day is never prescribed.
-INTERVAL_DAYS = {1, 3}   # Mon=0 … Sun=6
-LONG_DAY = 6
+# Fallback week used only when no athlete is supplied (tests, previews). Live plans
+# read the athlete's own `training_days`.
+DEFAULT_WEEK = {0: "rest", 1: "intervals", 2: "rest", 3: "intervals",
+                4: "rest", 5: "walk", 6: "long"}
 
-Kind = Literal["intervals", "long", "rest", "race"]
+Kind = Literal["intervals", "long", "rest", "race", "jog", "walk", "cross"]
 
 
 @dataclass
@@ -125,7 +125,9 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
             **base,
         )
 
-    if weekday == LONG_DAY:
+    day_type = athlete.day_type(weekday) if athlete else DEFAULT_WEEK[weekday]
+
+    if day_type == "long":
         return PlannedSession(
             kind="long", title=f"Long run — {long_km:g} km",
             detail=(
@@ -136,7 +138,45 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
             total_minutes=round(long_km * 11), **base,
         )
 
-    if weekday in INTERVAL_DAYS:
+    if day_type == "jog":
+        # An easy continuous-ish run, deliberately shorter than the long run so the
+        # week still has one clear distance session.
+        jog_km = round(long_km * 0.6, 1)
+        return PlannedSession(
+            kind="jog", title=f"Easy jog — {jog_km:g} km",
+            detail=(
+                f"Run/walk at {easy_pace_label}, whatever mix feels sustainable. This is "
+                "volume at low cost — it should feel easier than your interval days."
+            ),
+            distance_km=jog_km, focus="Easy volume",
+            total_minutes=round(jog_km * 11), **base,
+        )
+
+    if day_type == "walk":
+        return PlannedSession(
+            kind="walk", title="Easy walk — 25–30 min",
+            detail=(
+                "Brisk walking, no running. It builds aerobic base with none of the "
+                "impact load, which is exactly what a body adapting to running needs."
+            ),
+            focus="Active recovery", total_minutes=28,
+            **{k: v for k, v in base.items() if k not in ("target_pace",)},
+            target_pace="",
+        )
+
+    if day_type == "cross":
+        return PlannedSession(
+            kind="cross", title="Cross-training — 30 min",
+            detail=(
+                "Cycle, swim or row at an easy effort. Aerobic work without the "
+                "repetitive impact that causes most beginner running injuries."
+            ),
+            focus="Aerobic, no impact", total_minutes=30,
+            **{k: v for k, v in base.items() if k not in ("target_pace",)},
+            target_pace="",
+        )
+
+    if day_type == "intervals":
         if reps == 1 and walk_m == 0:
             title = f"{_fmt(run_m)} continuous"
             detail = f"Continuous easy running at {easy_pace_label}. Walk if HR crosses your ceiling."

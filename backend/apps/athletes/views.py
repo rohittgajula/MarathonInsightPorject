@@ -26,7 +26,8 @@ class AthleteViewSet(viewsets.GenericViewSet):
             serializer.save()
             # Pace band and cadence threshold feed the derived layer, so changing them
             # invalidates every stored metric for this athlete.
-            if {"easy_pace_min", "easy_pace_max", "hr_ceiling", "run_cadence_threshold"} & set(request.data):
+            if {"easy_pace_min", "easy_pace_max", "hr_ceiling",
+                "run_cadence_threshold", "training_days"} & set(request.data):
                 Activity.objects.filter(athlete=athlete).update(metrics_current=False)
             return Response(serializer.data)
 
