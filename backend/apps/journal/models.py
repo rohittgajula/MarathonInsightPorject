@@ -23,7 +23,17 @@ class DailyLog(OwnedByAthlete):
     alcohol_units = models.FloatField(null=True, blank=True)
     sleep_hours = models.FloatField(null=True, blank=True)
     felt = models.CharField(max_length=12, blank=True)
-    extraction_version = models.PositiveSmallIntegerField(default=1)
+
+    # Pain is the highest-value thing in a training log: injury ends more first
+    # training blocks than anything else, and it is always mentioned in passing
+    # before it becomes serious. The body part is captured so a recurring niggle in
+    # one place is visible rather than buried in prose.
+    pain_area = models.CharField(max_length=24, blank=True)
+    illness = models.BooleanField(default=False)
+    stressed = models.BooleanField(default=False)
+    travel = models.BooleanField(default=False)
+
+    extraction_version = models.PositiveSmallIntegerField(default=2)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -31,6 +41,9 @@ class DailyLog(OwnedByAthlete):
     class Meta:
         ordering = ["-log_date", "-created_at"]
         indexes = [models.Index(fields=["athlete", "log_date"])]
+        constraints = [
+            models.UniqueConstraint(fields=["athlete", "log_date"], name="uniq_athlete_log_day")
+        ]
 
     def __str__(self):
         return f"{self.log_date}: {self.text[:40]}"
@@ -40,20 +53,52 @@ class DailyLog(OwnedByAthlete):
         self.alcohol_units = extracted["alcohol_units"]
         self.sleep_hours = extracted["sleep_hours"]
         self.felt = extracted["felt"]
+        self.pain_area = extracted["pain_area"]
+        self.illness = extracted["illness"]
+        self.stressed = extracted["stressed"]
+        self.travel = extracted["travel"]
         super().save(*args, **kwargs)
 
 
-EXTRACTION_VERSION = 1
+EXTRACTION_VERSION = 2
 
 # Rough standard-drink equivalents. Deliberately coarse — the goal is "did you drink
 # and roughly how much", which is all the correlation analysis can support anyway.
+# Singular forms only — the matcher appends an optional plural, so "whisky" also
+# catches "whiskys" and "whiskies" without needing every spelling listed.
 DRINK_UNITS = {
-    "beer": 1.0, "beers": 1.0, "pint": 1.4, "pints": 1.4,
-    "wine": 1.5, "glass of wine": 1.5, "glasses of wine": 1.5,
-    "whisky": 1.0, "whiskey": 1.0, "vodka": 1.0, "rum": 1.0,
-    "gin": 1.0, "cocktail": 1.5, "cocktails": 1.5, "drink": 1.0, "drinks": 1.0,
-    "peg": 1.0, "pegs": 1.0,
+    "beer": 1.0, "pint": 1.4, "lager": 1.0, "ale": 1.0, "cider": 1.4,
+    "wine": 1.5, "glass": 1.5,
+    "whisky": 1.0, "whiskey": 1.0, "vodka": 1.0, "rum": 1.0, "gin": 1.0,
+    "tequila": 1.0, "brandy": 1.0, "shot": 1.0, "peg": 1.0,
+    "cocktail": 1.5, "drink": 1.0,
 }
+
+# Body parts worth tracking for a runner, with the words people actually type.
+BODY_PARTS = {
+    "knee": ["knee", "knees", "patella"],
+    "shin": ["shin", "shins", "shin splint", "shin splints"],
+    "achilles": ["achilles", "heel", "heels"],
+    "calf": ["calf", "calves"],
+    "hamstring": ["hamstring", "hamstrings"],
+    "hip": ["hip", "hips", "glute", "glutes"],
+    "foot": ["foot", "feet", "arch", "plantar", "toe", "toes"],
+    "ankle": ["ankle", "ankles"],
+    "back": ["back", "lower back"],
+    "it_band": ["it band", "itb", "iliotibial"],
+}
+
+PAIN_WORDS = ["pain", "hurt", "hurts", "sore", "ache", "aches", "aching", "tight",
+              "tightness", "niggle", "twinge", "stiff", "strain", "sprain", "swollen"]
+
+ILLNESS_WORDS = ["sick", "ill", "unwell", "cold", "flu", "fever", "cough",
+                 "sore throat", "infection", "food poisoning", "stomach bug"]
+
+STRESS_WORDS = ["stress", "stressed", "stressful", "anxious", "overwhelmed",
+                "deadline", "exhausting day", "long day at work"]
+
+TRAVEL_WORDS = ["flight", "flying", "flew", "travel", "travelling", "traveling",
+                "airport", "train journey", "road trip", "jet lag", "jetlag"]
 
 FEELINGS = {
     "great": "great", "good": "good", "fine": "ok", "ok": "ok", "okay": "ok",
@@ -89,11 +134,45 @@ def extract(text: str) -> dict:
 
     lower = text.lower()
 
-    alcohol = None
+    # Collect every drink mention with its span, then merge overlapping or adjacent
+    # ones. "three pegs of whisky" is one drink phrase, not a peg plus a whisky —
+    # counting both gave 4 units for 3 drinks, and alcohol feeds the readiness rules.
+    matches = []
     for word, units in DRINK_UNITS.items():
-        for match in re.finditer(rf"(\b[\w.]+\s+)?{re.escape(word)}\b", lower):
-            qty = _to_number(match.group(1) or "1") or 1.0
-            alcohol = (alcohol or 0.0) + qty * units
+        # Plurals without listing every spelling. Words ending in -y also take the
+        # y->ies form ("whisky" -> "whiskies"), which a plain suffix cannot produce.
+        stem = re.escape(word)
+        plural = (rf"(?:{stem}(?:s)?|{re.escape(word[:-1])}ies)"
+                  if word.endswith("y") else rf"{stem}(?:s|es)?")
+        pattern = rf"(\b[\w.]+\s+)?{plural}\b"
+        for match in re.finditer(pattern, lower):
+            qty_text = (match.group(1) or "").strip()
+            qty = _to_number(qty_text) if qty_text else None
+            matches.append({
+                "start": match.start(), "end": match.end(),
+                "units": units, "qty": qty, "explicit": qty is not None,
+            })
+
+    matches.sort(key=lambda m: m["start"])
+    merged: list[dict] = []
+    for m in matches:
+        prev = merged[-1] if merged else None
+        # Merge only across a genuine measure-of-drink phrase — "pegs of whisky",
+        # "glasses of wine". A character-distance window was too blunt: it also
+        # swallowed "a beer and two whiskys", counting three drinks as one.
+        gap = lower[prev["end"]:m["start"]] if prev else ""
+        joins = bool(re.fullmatch(r"\s*(of\s+(a|the|some)?\s*)?", gap))
+        if prev and joins:
+            if m["explicit"] and not prev["explicit"]:
+                prev["qty"], prev["explicit"] = m["qty"], True
+            prev["units"] = max(prev["units"], m["units"])
+            prev["end"] = max(prev["end"], m["end"])
+            continue
+        merged.append(dict(m))
+
+    alcohol = None
+    for m in merged:
+        alcohol = (alcohol or 0.0) + (m["qty"] if m["explicit"] else 1.0) * m["units"]
     if alcohol is None and re.search(r"\b(no alcohol|didn'?t drink|sober|teetotal)\b", lower):
         alcohol = 0.0
 
@@ -112,4 +191,29 @@ def extract(text: str) -> dict:
             felt = label
             break
 
-    return {"alcohol_units": alcohol, "sleep_hours": sleep, "felt": felt}
+    # A body part only counts as pain when a pain word appears near it — "ran on my
+    # feet" is not a foot injury, and flagging it would train the athlete to ignore
+    # the warnings that matter.
+    pain_area = ""
+    if any(re.search(rf"\b{re.escape(w)}\b", lower) for w in PAIN_WORDS):
+        for area, words in BODY_PARTS.items():
+            for word in words:
+                match = re.search(rf"\b{re.escape(word)}\b", lower)
+                if not match:
+                    continue
+                window = lower[max(0, match.start() - 45): match.end() + 45]
+                if any(re.search(rf"\b{re.escape(p)}\b", window) for p in PAIN_WORDS):
+                    pain_area = area
+                    break
+            if pain_area:
+                break
+
+    illness = any(re.search(rf"\b{re.escape(w)}\b", lower) for w in ILLNESS_WORDS)
+    stressed = any(re.search(rf"\b{re.escape(w)}\b", lower) for w in STRESS_WORDS)
+    travel = any(re.search(rf"\b{re.escape(w)}\b", lower) for w in TRAVEL_WORDS)
+
+    return {
+        "alcohol_units": alcohol, "sleep_hours": sleep, "felt": felt,
+        "pain_area": pain_area, "illness": illness,
+        "stressed": stressed, "travel": travel,
+    }

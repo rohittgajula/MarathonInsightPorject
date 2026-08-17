@@ -102,6 +102,17 @@ def evaluate(log, metrics=None) -> Adjustment:
     if log.felt in TIRED_WORDS:
         reasons.append(f"you felt {log.felt}")
 
+    # Pain and illness are stop signals rather than scale-back signals. Running
+    # through a niggle is how a two-day problem becomes a six-week one, and the plan
+    # has enough buffer to lose a fortnight and still make the start line.
+    if getattr(log, "pain_area", ""):
+        area = log.pain_area.replace("_", " ")
+        reasons.append(f"you reported {area} pain")
+        to_rest = True
+    if getattr(log, "illness", False):
+        reasons.append("you logged feeling unwell")
+        to_rest = True
+
     if not reasons:
         return Adjustment(False)
 
@@ -120,16 +131,33 @@ def apply(session, log, metrics=None) -> None:
 
     session.adjusted = True
 
-    if verdict.downgrade_to_rest and session.kind == "intervals":
-        session.adjust_reason = (
-            f"Eased because {verdict.reason}. Running hard on this little sleep buys "
-            "fatigue rather than fitness."
-        )
-        session.title = "Easy walk instead of intervals"
-        session.detail = (
-            "Swap the run blocks for a 25–30 minute walk. You lose nothing from one "
-            "session moved, and you keep the week intact."
-        )
+    if verdict.downgrade_to_rest and session.kind in ("intervals", "jog"):
+        # Pain and illness are stop signals, not scale-back signals, and they get
+        # their own wording — telling someone with knee pain that they are short on
+        # sleep points them at the wrong problem.
+        painful = bool(getattr(log, "pain_area", "")) or bool(getattr(log, "illness", False))
+
+        if painful:
+            session.adjust_reason = (
+                f"Dropped because {verdict.reason}. Running through this is how a "
+                "two-day problem becomes a six-week one — and the plan can lose a "
+                "fortnight and still reach the start line."
+            )
+            session.title = "Rest today"
+            session.detail = (
+                "No running, and no walking it off either. If it still hurts in two "
+                "days that is a physiotherapy question rather than a training one."
+            )
+        else:
+            session.adjust_reason = (
+                f"Eased because {verdict.reason}. Running hard on this little sleep "
+                "buys fatigue rather than fitness."
+            )
+            session.title = "Easy walk instead of intervals"
+            session.detail = (
+                "Swap the run blocks for a 25–30 minute walk. You lose nothing from "
+                "one session moved, and you keep the week intact."
+            )
         session.kind = "rest"
         session.focus = "Recover"
         session.run_minutes = 0.0
