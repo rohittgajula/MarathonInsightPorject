@@ -52,7 +52,7 @@ export function ActivityDetail() {
   return (
     <div className="stack" style={{ gap: 26 }}>
       <div>
-        <Link to="/" className="faint" style={{ textDecoration: "none" }}>← All activities</Link>
+        <Link to="/activities" className="faint" style={{ textDecoration: "none" }}>← All activities</Link>
         <div className="eyebrow" style={{ marginTop: 10 }}>{dateStr(a.local_date)}</div>
         <h1>{km(a.total_distance_m)} km in {durStr(a.total_elapsed_s)}</h1>
       </div>

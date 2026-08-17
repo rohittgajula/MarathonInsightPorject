@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { UploadCard } from "../components/UploadCard";
 import { durStr, km, paceStr, pct, dateStr } from "../lib/format";
-import type { Activity, Race } from "../lib/types";
+import type { Activity } from "../lib/types";
 
 interface Paged<T> { results: T[]; count: number; }
 
@@ -13,11 +13,6 @@ export function Activities() {
     queryFn: () => api.get<Paged<Activity>>("/activities/"),
   });
 
-  const target = useQuery({
-    queryKey: ["targetRace"],
-    queryFn: () => api.get<Race | null>("/races/target/"),
-  });
-
   return (
     <div className="stack" style={{ gap: 24 }}>
       <div>
@@ -25,23 +20,6 @@ export function Activities() {
         <h1>Activities</h1>
       </div>
 
-      {target.data && !target.data.is_past && (
-        <div className="card row" style={{ justifyContent: "space-between" }}>
-          <div>
-            <div className="eyebrow">Target race</div>
-            <h2 style={{ marginTop: 3 }}>
-              {target.data.name} · {target.data.distance_label}
-            </h2>
-            <p className="faint" style={{ margin: "3px 0 0" }}>{dateStr(target.data.race_date)}</p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div className="mono" style={{ fontSize: 30, fontWeight: 750, letterSpacing: "-.03em" }}>
-              {target.data.weeks_until}
-            </div>
-            <div className="faint">weeks to go</div>
-          </div>
-        </div>
-      )}
 
       <UploadCard />
 

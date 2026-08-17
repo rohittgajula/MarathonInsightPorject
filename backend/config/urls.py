@@ -9,4 +9,5 @@ urlpatterns = [
     path("api/", include("apps.ingest.urls")),
     path("api/", include("apps.activities.urls")),
     path("api/", include("apps.plans.urls")),
+    path("api/", include("apps.journal.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

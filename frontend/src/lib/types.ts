@@ -96,3 +96,46 @@ export interface Race {
   is_past: boolean;
   week_number: number | null;
 }
+
+export interface DailyLog {
+  id: number;
+  log_date: string;
+  text: string;
+  alcohol_units: number | null;
+  sleep_hours: number | null;
+  felt: string;
+  created_at: string;
+}
+
+export interface PlannedSession {
+  date: string;
+  kind: "intervals" | "long" | "rest" | "race";
+  title: string;
+  detail: string;
+  plan_week: number;
+  weeks_out: number;
+  phase: string;
+  note: string;
+  run_minutes: number;
+  distance_km: number;
+}
+
+export interface TrendPoint {
+  date: string;
+  distance_km: number;
+  longest_run_min: number | null;
+  run_pace_s: number | null;
+  discipline_pct: number | null;
+  hr_recovery: number | null;
+}
+
+export interface Dashboard {
+  today: PlannedSession | null;
+  tomorrow: PlannedSession | null;
+  week: PlannedSession[];
+  insights: { tone: string; headline: string; detail: string }[];
+  trend: TrendPoint[];
+  activity_count: number;
+  log_count: number;
+  garmin_connected: boolean;
+}
