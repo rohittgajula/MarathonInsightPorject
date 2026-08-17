@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { ChartNotes } from "../components/ChartNotes";
 import { CompositionDonut } from "../components/CompositionDonut";
 import { CourseMap } from "../components/CourseMap";
+import { MetricOverlay } from "../components/MetricOverlay";
 import { SegmentBar } from "../components/SegmentBar";
 import { SessionCharts } from "../components/SessionCharts";
 import { durStr, km, paceStr, pct, dateStr } from "../lib/format";
@@ -113,6 +114,10 @@ export function ActivityDetail() {
         {stream.data && <CourseMap stream={stream.data} segments={a.segments ?? []} />}
         <ChartNotes notes={a.chart_notes?.route} />
       </div>
+
+      {stream.data && athlete.data && (
+        <MetricOverlay stream={stream.data} athlete={athlete.data} segments={a.segments ?? []} />
+      )}
 
       <div className="card static">
         {stream.isLoading && <p className="muted">Loading per-second data…</p>}

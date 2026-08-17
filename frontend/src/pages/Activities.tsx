@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { RunCompare } from "../components/RunCompare";
 import { UploadCard } from "../components/UploadCard";
 import { durStr, km, paceStr, pct, dateStr } from "../lib/format";
 import type { Activity } from "../lib/types";
@@ -34,6 +35,8 @@ export function Activities() {
           </p>
         </div>
       )}
+
+      {data && data.results.length > 0 && <RunCompare activities={data.results} />}
 
       {data && data.results.length > 0 && (
         <div className="card scroll">

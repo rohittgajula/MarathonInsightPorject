@@ -223,3 +223,24 @@ export interface WarmupRoutine {
   muscle_labels: Record<string, string>;
   exercises: WarmupExercise[];
 }
+
+export interface ComparePoint {
+  km: number;
+  pace: number | null;
+  hr: number | null;
+  cadence: number | null;
+  elevation: number | null;
+}
+
+export interface CompareSeries {
+  id: number;
+  date: string;
+  sport: string;
+  distance_km: number;
+  duration_s: number;
+  avg_run_pace_s: number | null;
+  longest_run_s: number | null;
+  points: ComparePoint[];
+}
+
+export interface CompareResponse { activities: CompareSeries[]; }

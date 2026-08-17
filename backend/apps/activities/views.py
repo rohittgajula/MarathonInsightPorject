@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from apps.athletes.mixins import AthleteScopedMixin
 from apps.athletes.permissions import IsAthleteOwner
 
+from .compare import series_for
 from .models import Activity
 from .serializers import (
     ActivityDetailSerializer,
@@ -41,6 +42,23 @@ class ActivityViewSet(AthleteScopedMixin, viewsets.ReadOnlyModelViewSet):
         activity = self.get_object()
         records = activity.records.all().order_by("offset_s")
         return Response(ActivityStreamSerializer(records, many=True).data)
+
+    @action(detail=False, methods=["get"])
+    def compare(self, request):
+        """Resampled series for several activities, for overlaying on one chart.
+
+        Capped at six: beyond that the lines are indistinguishable and the request
+        gets slow enough to matter.
+        """
+        raw = (request.query_params.get("ids") or "").split(",")
+        ids = [int(v) for v in raw if v.strip().isdigit()][:6]
+        if not ids:
+            return Response({"activities": []})
+
+        found = {a.id: a for a in self.get_queryset().filter(id__in=ids)}
+        # Preserve the caller's ordering so colours stay stable as they toggle runs.
+        ordered = [found[i] for i in ids if i in found]
+        return Response({"activities": [series_for(a) for a in ordered]})
 
     @action(detail=True, methods=["post"])
     def reprocess(self, request, pk=None):

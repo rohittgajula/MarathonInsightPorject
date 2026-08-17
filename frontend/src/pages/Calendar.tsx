@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import { DayNote } from "../components/DayNote";
 import { WeekPlanner } from "../components/WeekPlanner";
@@ -26,6 +26,7 @@ function iso(d: Date) {
 export function Calendar() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Pad to whole weeks so the grid never has a ragged first or last row.
   const gridStart = new Date(month);
@@ -91,11 +92,23 @@ export function Calendar() {
                   info?.is_race ? "race" : "",
                   selected === key ? "selected" : "",
                 ].join(" ")}
-                onClick={() => setSelected(key)}
-                title={planned?.adjusted ? planned.adjust_reason : undefined}
+                onClick={() => {
+                  // A day with exactly one recorded activity jumps straight to it —
+                  // that is the thing you want when clicking a past date. Anything
+                  // else opens the day panel, where the plan and every activity sit.
+                  const acts = info?.activities ?? [];
+                  if (acts.length === 1) navigate(`/activity/${acts[0].id}`);
+                  else setSelected(key);
+                }}
+                title={
+                  (info?.activities?.length === 1 ? "Open this activity. " : "") +
+                  (planned?.adjusted ? planned.adjust_reason : "")
+                  || undefined
+                }
                 aria-label={
                   `${key}${planned ? `, planned ${planned.title}` : ""}` +
-                  (planned?.adjusted ? `. Adjusted: ${planned.adjust_reason}` : "")
+                  (planned?.adjusted ? `. Adjusted: ${planned.adjust_reason}` : "") +
+                  ((info?.activities?.length ?? 0) > 0 ? ". Has a recorded activity" : "")
                 }
               >
                 <span className="cal-num mono">{d.getDate()}</span>
