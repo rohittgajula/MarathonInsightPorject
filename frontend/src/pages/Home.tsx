@@ -23,44 +23,31 @@ export function Home() {
 
   return (
     <div className="stack" style={{ gap: 22 }}>
-      <div>
-        <div className="eyebrow">Today is {dateStr(new Date().toISOString().slice(0, 10))}</div>
-        <h1>Tomorrow</h1>
+      <div className="hero">
+        <div className="row split" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div className="row" style={{ gap: 14, alignItems: "flex-start", flexWrap: "nowrap" }}>
+            <span className="hero-icon" aria-hidden="true">🏃</span>
+            <div style={{ minWidth: 0 }}>
+              <div className="eyebrow">
+                {dateStr(new Date().toISOString().slice(0, 10))}
+              </div>
+              <h1>Tomorrow: {t ? t.title : "no plan set"}</h1>
+              <p>
+                {t
+                  ? t.kind === "rest"
+                    ? "A rest day. Adaptation happens on the days you don't run."
+                    : `Week ${t.plan_week} of 17 · ${t.phase}. Run blocks at 10:00–10:45/km — keep your cadence and shorten your stride.`
+                  : "Add a target race to get a session prescribed for every day."}
+              </p>
+            </div>
+          </div>
+          {t && (
+            <span className="hero-badge mono">{t.weeks_out} weeks to race</span>
+          )}
+        </div>
       </div>
 
       <GarminPanel />
-
-      {t && (
-        <div className="card stack" style={{ gap: 12 }}>
-          <div className="row split" style={{ justifyContent: "space-between" }}>
-            <div className="row" style={{ gap: 9 }}>
-              <h2>{t.title}</h2>
-              {t.kind !== "rest" && (
-                <span className={`chip ${KIND_CHIP[t.kind] ?? ""}`}>{t.kind}</span>
-              )}
-              {t.note && <span className="chip warn">{t.note}</span>}
-            </div>
-            <span className="faint">
-              Week {t.plan_week} of 17 · {t.phase} · {t.weeks_out} weeks to race
-            </span>
-          </div>
-          <p style={{ fontSize: 14 }}>{t.detail}</p>
-          {(t.run_minutes > 0 || t.distance_km > 0) && (
-            <div className="row" style={{ gap: 22 }}>
-              {t.run_minutes > 0 && (
-                <span className="faint">
-                  Running time <b className="mono" style={{ color: "var(--ink)" }}>{t.run_minutes} min</b>
-                </span>
-              )}
-              {t.distance_km > 0 && (
-                <span className="faint">
-                  Distance <b className="mono" style={{ color: "var(--ink)" }}>{t.distance_km} km</b>
-                </span>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       <div className="grid-2">
         <div className="card stack" style={{ gap: 0 }}>

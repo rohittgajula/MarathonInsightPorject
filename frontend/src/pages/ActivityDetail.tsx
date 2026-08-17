@@ -2,18 +2,22 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { ChartNotes } from "../components/ChartNotes";
+import { CompositionDonut } from "../components/CompositionDonut";
 import { CourseMap } from "../components/CourseMap";
 import { SegmentBar } from "../components/SegmentBar";
 import { SessionCharts } from "../components/SessionCharts";
 import { durStr, km, paceStr, pct, dateStr } from "../lib/format";
 import type { Activity, Athlete, StreamPoint } from "../lib/types";
 
-function Tile({ label, value, tone, note }: {
-  label: string; value: string; tone?: "good" | "warn"; note?: string;
+function Tile({ label, value, tone, note, icon }: {
+  label: string; value: string; tone?: "good" | "warn"; note?: string; icon: string;
 }) {
   return (
     <div className="card tile">
-      <div className="k">{label}</div>
+      <div className="tile-head">
+        <div className="k">{label}</div>
+        <span className={`tile-icon ${tone ?? ""}`} aria-hidden="true">{icon}</span>
+      </div>
       <div className={`v mono ${tone ?? ""}`}>{value}</div>
       {note && <div className="n">{note}</div>}
     </div>
@@ -60,44 +64,47 @@ export function ActivityDetail() {
 
       <div className="grid">
         <Tile
-          label="Ran continuously"
+          label="Longest block" icon="⏱"
           value={durStr(m?.longest_run_s)}
           note={m ? `Longest unbroken block · ${Math.round(m.longest_run_m)} m` : undefined}
         />
         <Tile
-          label="Run blocks"
+          label="Run blocks" icon="▦"
           value={String(m?.run_block_count ?? "—")}
           note={m ? `${km(m.run_distance_m)} km running, ${km(m.walk_distance_m)} km walking` : undefined}
         />
         <Tile
-          label="Avg running pace"
+          label="Running pace" icon="⚡"
           value={`${paceStr(m?.avg_run_pace_s_per_km)}/km`}
           note="Across running blocks only — walking excluded."
         />
         <Tile
-          label="Pace discipline"
+          label="Pace discipline" icon="◎"
           value={pct(m?.pace_discipline_pct)}
           tone={disciplineTone}
           note="Share of running time inside your easy band."
         />
         <Tile
-          label="HR recovery"
+          label="HR recovery" icon="♥"
           value={m?.avg_hr_recovery_60s != null ? `${m.avg_hr_recovery_60s.toFixed(0)} bpm` : "—"}
           tone={m?.avg_hr_recovery_60s != null && m.avg_hr_recovery_60s >= 20 ? "good" : undefined}
           note="Drop in the first minute of a walk break. Rises as you get fitter."
         />
         <Tile
-          label="HR overshoot"
+          label="HR overshoot" icon="↗"
           value={m?.avg_hr_overshoot_bpm != null ? `+${m.avg_hr_overshoot_bpm.toFixed(0)} bpm` : "—"}
           tone={m?.avg_hr_overshoot_bpm != null && m.avg_hr_overshoot_bpm > 4 ? "warn" : undefined}
           note="How far HR kept climbing after you stopped. Should fall towards zero."
         />
       </div>
 
-      <div className="card stack">
-        <h2>Session shape</h2>
-        <SegmentBar segments={a.segments ?? []} />
-        <ChartNotes notes={a.chart_notes?.shape} />
+      <div className="grid-2">
+        {m && <CompositionDonut metrics={m} />}
+        <div className="card stack">
+          <h2>Session shape</h2>
+          <SegmentBar segments={a.segments ?? []} />
+          <ChartNotes notes={a.chart_notes?.shape} />
+        </div>
       </div>
 
       <div className="card stack">
