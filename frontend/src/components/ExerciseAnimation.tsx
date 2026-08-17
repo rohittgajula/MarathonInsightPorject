@@ -1,38 +1,47 @@
 /* Animated demonstration per exercise.
 
-   Hand-authored SVG with CSS keyframes rather than a video or GIF: it inherits theme
-   colours, scales without artefacts, weighs nothing, and stops dead under
-   prefers-reduced-motion (where a looping GIF would keep going).
+   Same visual language as the muscle map: a filled body silhouette rather than stick
+   lines, with the moving part drawn in the run colour so the movement reads at a
+   glance. SVG + CSS keyframes rather than video or GIF — it takes theme colours,
+   weighs nothing, and genuinely stops under prefers-reduced-motion.
 
-   Each figure is deliberately schematic — a stick figure showing the *movement* and
-   its direction, since that is the thing a description struggles to convey. The moving
-   part is drawn in the run colour so it reads instantly against the static body. */
+   The loops are slow and eased on purpose. These are controlled movements, and a fast
+   loop teaches the wrong tempo. */
 
-const LIMB = { stroke: "var(--ink-faint)", strokeWidth: 4, strokeLinecap: "round" as const, fill: "none" };
-const MOVE = { stroke: "var(--run)", strokeWidth: 4.5, strokeLinecap: "round" as const, fill: "none" };
+const BODY = "var(--ink-faint)";
+const MOVE = "var(--run)";
+const HINT = { stroke: MOVE, strokeWidth: 1.6, fill: "none", strokeDasharray: "3 3", opacity: 0.5 };
 
 function Frame({ children, label }: { children: React.ReactNode; label: string }) {
   return (
-    <svg viewBox="0 0 120 120" className="ex-anim" role="img" aria-label={label}>
+    <svg viewBox="0 0 130 130" className="ex-anim" role="img" aria-label={label}>
       {children}
     </svg>
+  );
+}
+
+/** Head + torso, shared by the upright figures. */
+function Upright({ x = 60 }: { x?: number }) {
+  return (
+    <g>
+      <circle cx={x} cy={22} r={8} fill={BODY} />
+      <path d={`M${x - 9},32 C${x - 13},40 ${x - 13},52 ${x - 11},62
+                L${x + 11},62 C${x + 13},52 ${x + 13},40 ${x + 9},32 Z`} fill={BODY} />
+    </g>
   );
 }
 
 function AnkleCircles() {
   return (
     <Frame label="Ankle drawing slow circles, ten in each direction">
-      {/* lower leg, fixed */}
-      <line x1="60" y1="18" x2="60" y2="66" {...LIMB} />
-      <circle cx="60" cy="14" r="5" fill="var(--ink-faint)" />
-      {/* foot orbits the ankle */}
-      <g className="anim-ankle" style={{ transformOrigin: "60px 66px" }}>
-        <line x1="60" y1="66" x2="76" y2="76" {...MOVE} />
+      <path d="M56,20 C52,34 52,52 54,68 L66,68 C68,52 68,34 64,20 Z" fill={BODY} opacity=".55" />
+      <path d="M56,68 C54,80 54,90 56,98 L66,98 C67,88 67,78 66,68 Z" fill={BODY} />
+      <circle cx="61" cy="99" r="3.5" fill={MOVE} />
+      <g className="anim-ankle" style={{ transformOrigin: "61px 99px" }}>
+        <path d="M61,99 C68,101 76,104 80,109 C76,113 66,112 61,108 Z" fill={MOVE} />
       </g>
-      {/* direction hint */}
-      <path d="M84 66 a18 18 0 1 1 -6 -13" fill="none" stroke="var(--run)"
-            strokeWidth="1.6" strokeDasharray="3 3" opacity=".55" />
-      <path d="M78 50 l2 6 l-6 1 z" fill="var(--run)" opacity=".8" />
+      <circle cx="61" cy="99" r="19" {...HINT} />
+      <path d="M78,92 l3.5 7 l-7.5 1 z" fill={MOVE} opacity=".85" />
     </Frame>
   );
 }
@@ -40,20 +49,18 @@ function AnkleCircles() {
 function LegSwings() {
   return (
     <Frame label="Leg swinging forward and back from the hip">
-      <line x1="42" y1="26" x2="42" y2="60" {...LIMB} />
-      <circle cx="42" cy="20" r="5" fill="var(--ink-faint)" />
-      <line x1="42" y1="60" x2="42" y2="100" {...LIMB} />
-      {/* wall */}
-      <line x1="16" y1="14" x2="16" y2="106" stroke="var(--rule)" strokeWidth="3" />
-      <line x1="42" y1="34" x2="20" y2="30" {...LIMB} />
-      {/* swinging leg */}
-      <g className="anim-swing" style={{ transformOrigin: "42px 60px" }}>
-        <line x1="42" y1="60" x2="42" y2="100" {...MOVE} />
-        <line x1="42" y1="100" x2="52" y2="103" {...MOVE} />
+      <rect x="12" y="10" width="5" height="112" rx="2" fill="var(--rule)" />
+      <Upright x="52" />
+      <path d="M43,38 L22,34 L21,40 L43,45 Z" fill={BODY} />
+      <path d="M45,62 C42,80 42,98 44,112 L54,112 C55,96 55,78 55,62 Z" fill={BODY} opacity=".55" />
+      <g className="anim-swing" style={{ transformOrigin: "58px 62px" }}>
+        <path d="M56,62 C57,80 58,96 59,110 C63,112 68,112 70,110
+                 C69,94 67,78 66,62 Z" fill={MOVE} />
+        <path d="M59,110 C63,112 70,113 74,116 C70,119 62,118 59,116 Z" fill={MOVE} />
       </g>
-      <path d="M70 92 h18" stroke="var(--run)" strokeWidth="1.6" strokeDasharray="3 3" opacity=".5" />
-      <path d="M88 92 l-6 -3 v6 z" fill="var(--run)" opacity=".7" />
-      <path d="M70 92 l6 -3 v6 z" fill="var(--run)" opacity=".7" />
+      <path d="M78,104 h26" {...HINT} />
+      <path d="M104,104 l-7,-3.5 v7 z" fill={MOVE} opacity=".75" />
+      <path d="M78,104 l7,-3.5 v7 z" fill={MOVE} opacity=".75" />
     </Frame>
   );
 }
@@ -61,18 +68,17 @@ function LegSwings() {
 function LateralSwings() {
   return (
     <Frame label="Leg swinging side to side across the body">
-      <circle cx="60" cy="20" r="5" fill="var(--ink-faint)" />
-      <line x1="60" y1="26" x2="60" y2="60" {...LIMB} />
-      <line x1="60" y1="34" x2="40" y2="30" {...LIMB} />
-      <line x1="60" y1="34" x2="80" y2="30" {...LIMB} />
-      <line x1="60" y1="60" x2="54" y2="100" {...LIMB} />
-      <g className="anim-lateral" style={{ transformOrigin: "60px 60px" }}>
-        <line x1="60" y1="60" x2="66" y2="100" {...MOVE} />
-        <line x1="66" y1="100" x2="72" y2="102" {...MOVE} />
+      <Upright x="62" />
+      <path d="M53,38 L36,32 L34,38 L52,45 Z" fill={BODY} />
+      <path d="M71,38 L88,32 L90,38 L72,45 Z" fill={BODY} />
+      <path d="M53,62 C51,80 51,98 53,112 L62,112 C62,96 62,78 62,62 Z" fill={BODY} />
+      <g className="anim-lateral" style={{ transformOrigin: "64px 62px" }}>
+        <path d="M64,62 C65,80 66,96 67,110 L77,110 C76,94 74,78 73,62 Z" fill={MOVE} />
+        <path d="M67,110 C72,112 79,112 82,115 C78,118 70,117 67,115 Z" fill={MOVE} />
       </g>
-      <path d="M34 106 h52" stroke="var(--run)" strokeWidth="1.6" strokeDasharray="3 3" opacity=".5" />
-      <path d="M86 106 l-6 -3 v6 z" fill="var(--run)" opacity=".7" />
-      <path d="M34 106 l6 -3 v6 z" fill="var(--run)" opacity=".7" />
+      <path d="M28,120 h74" {...HINT} />
+      <path d="M102,120 l-7,-3.5 v7 z" fill={MOVE} opacity=".75" />
+      <path d="M28,120 l7,-3.5 v7 z" fill={MOVE} opacity=".75" />
     </Frame>
   );
 }
@@ -80,19 +86,15 @@ function LateralSwings() {
 function GluteBridge() {
   return (
     <Frame label="Hips lifting off the floor into a bridge">
-      {/* floor */}
-      <line x1="10" y1="96" x2="110" y2="96" stroke="var(--rule)" strokeWidth="3" />
-      {/* head + shoulders stay down */}
-      <circle cx="24" cy="86" r="6" fill="var(--ink-faint)" />
-      {/* knees / lower legs fixed */}
-      <line x1="86" y1="96" x2="86" y2="66" {...LIMB} />
-      {/* torso + thigh lift together */}
+      <rect x="8" y="106" width="114" height="4" rx="2" fill="var(--rule)" />
+      <circle cx="24" cy="94" r="8" fill={BODY} />
+      <path d="M88,106 C90,92 90,80 88,72 L78,72 C79,84 79,96 79,106 Z" fill={BODY} />
       <g className="anim-bridge">
-        <line x1="32" y1="88" x2="62" y2="80" {...MOVE} />
-        <line x1="62" y1="80" x2="86" y2="66" {...MOVE} />
+        <path d="M32,100 C46,94 60,88 74,78 L80,88 C66,98 48,104 34,108 Z" fill={MOVE} />
+        <path d="M74,78 C80,74 85,72 89,71 L91,80 C87,82 83,84 80,88 Z" fill={MOVE} />
       </g>
-      <path d="M60 56 v-16" stroke="var(--run)" strokeWidth="1.6" strokeDasharray="3 3" opacity=".55" />
-      <path d="M60 38 l-3 6 h6 z" fill="var(--run)" opacity=".8" />
+      <path d="M56,64 v-18" {...HINT} strokeDasharray="3 3" />
+      <path d="M56,44 l-3.5,7 h7 z" fill={MOVE} opacity=".85" />
     </Frame>
   );
 }
@@ -100,15 +102,15 @@ function GluteBridge() {
 function CalfRaises() {
   return (
     <Frame label="Rising onto the toes and lowering under control">
-      <line x1="10" y1="104" x2="110" y2="104" stroke="var(--rule)" strokeWidth="3" />
+      <rect x="8" y="112" width="114" height="4" rx="2" fill="var(--rule)" />
       <g className="anim-calf">
-        <circle cx="60" cy="26" r="6" fill="var(--ink-faint)" />
-        <line x1="60" y1="32" x2="60" y2="62" {...LIMB} />
-        <line x1="60" y1="62" x2="60" y2="96" {...MOVE} />
-        <line x1="60" y1="96" x2="74" y2="102" {...MOVE} />
+        <Upright x="60" />
+        <path d="M51,62 C49,78 49,94 51,106 L59,106 C59,92 59,76 59,62 Z" fill={BODY} />
+        <path d="M61,62 C61,76 61,92 61,106 L69,106 C71,94 71,78 69,62 Z" fill={MOVE} />
+        <path d="M51,106 C48,109 46,111 45,113 L74,113 C73,110 71,108 69,106 Z" fill={MOVE} />
       </g>
-      <path d="M92 88 v-22" stroke="var(--run)" strokeWidth="1.6" strokeDasharray="3 3" opacity=".55" />
-      <path d="M92 64 l-3 6 h6 z" fill="var(--run)" opacity=".8" />
+      <path d="M96,102 v-26" {...HINT} />
+      <path d="M96,74 l-3.5,7 h7 z" fill={MOVE} opacity=".85" />
     </Frame>
   );
 }
@@ -116,26 +118,25 @@ function CalfRaises() {
 function WalkIn() {
   return (
     <Frame label="Walking briskly, arms and legs swinging">
-      <line x1="10" y1="106" x2="110" y2="106" stroke="var(--rule)" strokeWidth="3" />
-      <circle cx="60" cy="24" r="6" fill="var(--ink-faint)" />
-      <line x1="60" y1="30" x2="60" y2="64" {...LIMB} />
-      <g className="anim-walk-a" style={{ transformOrigin: "60px 64px" }}>
-        <line x1="60" y1="64" x2="52" y2="104" {...MOVE} />
+      <rect x="8" y="116" width="114" height="4" rx="2" fill="var(--rule)" />
+      <Upright x="62" />
+      <g className="anim-walk-a" style={{ transformOrigin: "62px 62px" }}>
+        <path d="M58,62 C55,80 52,98 50,114 L60,116 C62,98 63,80 64,62 Z" fill={MOVE} />
       </g>
-      <g className="anim-walk-b" style={{ transformOrigin: "60px 64px" }}>
-        <line x1="60" y1="64" x2="68" y2="104" {...LIMB} />
+      <g className="anim-walk-b" style={{ transformOrigin: "62px 62px" }}>
+        <path d="M62,62 C64,80 67,98 70,114 L79,112 C76,96 72,78 69,62 Z" fill={BODY} />
       </g>
-      <g className="anim-walk-b" style={{ transformOrigin: "60px 38px" }}>
-        <line x1="60" y1="38" x2="48" y2="58" {...LIMB} />
+      <g className="anim-walk-b" style={{ transformOrigin: "62px 38px" }}>
+        <path d="M55,36 L38,50 L42,56 L58,44 Z" fill={BODY} />
       </g>
-      <g className="anim-walk-a" style={{ transformOrigin: "60px 38px" }}>
-        <line x1="60" y1="38" x2="72" y2="58" {...LIMB} />
+      <g className="anim-walk-a" style={{ transformOrigin: "62px 38px" }}>
+        <path d="M69,36 L86,50 L82,56 L66,44 Z" fill={BODY} />
       </g>
     </Frame>
   );
 }
 
-const BY_KEY: Record<string, () => JSX.Element> = {
+const BY_KEY: Record<string, () => React.ReactElement> = {
   ankle_circles: AnkleCircles,
   leg_swings: LegSwings,
   lateral_swings: LateralSwings,

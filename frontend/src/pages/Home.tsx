@@ -54,7 +54,7 @@ export function Home() {
         {t?.adjusted && (
           <p style={{ marginTop: 14, paddingTop: 12,
                       borderTop: "1px solid rgba(255,255,255,.22)" }}>
-            <strong>Adjusted from your log.</strong> {t.adjust_reason}
+<strong>Why this changed.</strong> {t.adjust_reason}
           </p>
         )}
       </div>

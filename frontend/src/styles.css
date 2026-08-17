@@ -546,3 +546,19 @@ td.num, th.num { text-align: right; }
 
 .ex-row { display: flex; gap: 16px; align-items: flex-start; }
 @media (max-width: 560px) { .ex-row { flex-direction: column; align-items: center; } }
+
+/* The adjustment reason is the one thing that explains why the plan disagrees with
+   the template, so it gets its own block rather than sitting in body copy. */
+.adjust-note {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+  display: flex; flex-direction: column; gap: 3px;
+}
+.adjust-note p { color: var(--ink); font-size: 13.5px; }
+.cal-adj {
+  position: absolute; bottom: 6px; left: 7px; font-size: 8px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase; color: var(--accent);
+  background: var(--accent-soft); border-radius: 3px; padding: 1px 4px;
+}

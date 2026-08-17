@@ -92,7 +92,11 @@ export function Calendar() {
                   selected === key ? "selected" : "",
                 ].join(" ")}
                 onClick={() => setSelected(key)}
-                aria-label={`${key}${planned ? `, planned ${planned.title}` : ""}`}
+                title={planned?.adjusted ? planned.adjust_reason : undefined}
+                aria-label={
+                  `${key}${planned ? `, planned ${planned.title}` : ""}` +
+                  (planned?.adjusted ? `. Adjusted: ${planned.adjust_reason}` : "")
+                }
               >
                 <span className="cal-num mono">{d.getDate()}</span>
                 {planned && planned.kind !== "rest" && (
@@ -106,7 +110,7 @@ export function Calendar() {
                   </span>
                 )}
                 {done > 0 && <span className="cal-done" title={`${done} recorded`} />}
-                {planned?.adjusted && <span className="cal-adj">adj</span>}
+                {planned?.adjusted && <span className="cal-adj">eased</span>}
               </button>
             );
           })}
@@ -149,7 +153,10 @@ function DayDetail({ day }: { day: CalendarDay }) {
           </div>
           <p style={{ fontSize: 13.5 }}>{p.detail}</p>
           {p.adjusted && (
-            <p className="faint" style={{ color: "var(--ink)" }}>{p.adjust_reason}</p>
+            <div className="adjust-note">
+              <span className="eyebrow">Why this changed</span>
+              <p>{p.adjust_reason}</p>
+            </div>
           )}
           <div className="grid">
             {p.target_pace && <Mini k="Target pace" v={p.target_pace} />}
