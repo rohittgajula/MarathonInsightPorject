@@ -19,6 +19,7 @@ export function Races() {
     name: "", race_date: "", distance_m: 10000, location: "", goal: "finish" as const,
   });
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<Race | null>(null);
 
   const races = useQuery({
     queryKey: ["races"],
@@ -42,6 +43,18 @@ export function Races() {
 
   const setTarget = useMutation({
     mutationFn: (id: number) => api.patch<Race>(`/races/${id}/`, { is_target: true }),
+    onSuccess: invalidate,
+  });
+
+  const update = useMutation({
+    mutationFn: ({ id, body }: { id: number; body: Partial<Race> }) =>
+      api.patch<Race>(`/races/${id}/`, body),
+    onSuccess: () => { invalidate(); setEditing(null); setError(null); },
+    onError: (e: Error) => setError(e.message),
+  });
+
+  const remove = useMutation({
+    mutationFn: (id: number) => api.del<void>(`/races/${id}/`),
     onSuccess: invalidate,
   });
 
@@ -110,7 +123,65 @@ export function Races() {
       {races.data && races.data.results.length > 0 && (
         <div className="stack">
           {races.data.results.map((race) => (
-            <div key={race.id} className="card row" style={{ justifyContent: "space-between" }}>
+            editing?.id === race.id ? (
+              <form
+                key={race.id} className="card stack"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  update.mutate({ id: race.id, body: {
+                    name: editing.name, race_date: editing.race_date,
+                    distance_m: editing.distance_m, location: editing.location,
+                  }});
+                }}
+              >
+                <h2>Edit race</h2>
+                <div className="grid">
+                  <label className="stack" style={{ gap: 5 }}>
+                    <span className="faint">Race name</span>
+                    <input required value={editing.name}
+                           onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
+                  </label>
+                  <label className="stack" style={{ gap: 5 }}>
+                    <span className="faint">Race day</span>
+                    <input required type="date" value={editing.race_date}
+                           onChange={(e) => setEditing({ ...editing, race_date: e.target.value })} />
+                  </label>
+                  <label className="stack" style={{ gap: 5 }}>
+                    <span className="faint">Distance</span>
+                    <select value={editing.distance_m}
+                            onChange={(e) => setEditing({ ...editing, distance_m: Number(e.target.value) })}>
+                      {PRESETS.map((p) => (
+                        <option key={p.metres} value={p.metres}>{p.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="stack" style={{ gap: 5 }}>
+                    <span className="faint">Location</span>
+                    <input value={editing.location}
+                           onChange={(e) => setEditing({ ...editing, location: e.target.value })} />
+                  </label>
+                </div>
+                {error && <p className="error" style={{ margin: 0 }}>{error}</p>}
+                <div className="row">
+                  <button type="submit" disabled={update.isPending}>
+                    {update.isPending ? "Saving…" : "Save changes"}
+                  </button>
+                  <button type="button" className="ghost" onClick={() => { setEditing(null); setError(null); }}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button" className="ghost" style={{ marginLeft: "auto" }}
+                    onClick={() => {
+                      if (confirm(`Delete "${race.name}"? This cannot be undone.`)) remove.mutate(race.id);
+                    }}
+                    disabled={remove.isPending}
+                  >
+                    Delete race
+                  </button>
+                </div>
+              </form>
+            ) : (
+            <div key={race.id} className="card row split" style={{ justifyContent: "space-between" }}>
               <div>
                 <div className="row" style={{ gap: 9 }}>
                   <h2>{race.name}</h2>
@@ -139,17 +210,20 @@ export function Races() {
                 ) : (
                   <div className="faint">Race day has passed</div>
                 )}
-                {!race.is_target && !race.is_past && (
-                  <button
-                    className="ghost" style={{ marginTop: 8 }}
-                    onClick={() => setTarget.mutate(race.id)}
-                    disabled={setTarget.isPending}
-                  >
-                    Make target
+                <div className="row" style={{ marginTop: 8, justifyContent: "flex-end" }}>
+                  {!race.is_target && !race.is_past && (
+                    <button className="ghost" onClick={() => setTarget.mutate(race.id)}
+                            disabled={setTarget.isPending}>
+                      Make target
+                    </button>
+                  )}
+                  <button className="ghost" onClick={() => { setEditing(race); setError(null); }}>
+                    Edit
                   </button>
-                )}
+                </div>
               </div>
             </div>
+            )
           ))}
         </div>
       )}

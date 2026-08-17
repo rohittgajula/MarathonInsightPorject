@@ -7,6 +7,7 @@ import { ActivityDetail } from "./pages/ActivityDetail";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { Races } from "./pages/Races";
+import { usePointerGlow } from "./lib/usePointerGlow";
 import type { Race } from "./lib/types";
 
 const NAV = [
@@ -36,6 +37,7 @@ function SidebarRaceCard() {
 
 export default function App() {
   const [authed, setAuthed] = useState(!!getToken());
+  usePointerGlow();
 
   if (!authed) {
     return <div className="main"><Login onSuccess={() => setAuthed(true)} /></div>;

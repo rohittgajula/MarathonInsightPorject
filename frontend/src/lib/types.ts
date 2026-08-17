@@ -119,6 +119,12 @@ export interface PlannedSession {
   note: string;
   run_minutes: number;
   distance_km: number;
+  target_pace: string;
+  target_hr: string;
+  total_minutes: number;
+  focus: string;
+  adjusted: boolean;
+  adjust_reason: string;
 }
 
 export interface TrendPoint {

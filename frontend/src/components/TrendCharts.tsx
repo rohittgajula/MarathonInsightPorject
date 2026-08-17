@@ -16,7 +16,7 @@ function Frame({ title, hint, children }: {
   title: string; hint: string; children: React.ReactNode;
 }) {
   return (
-    <div className="card stack" style={{ gap: 8 }}>
+    <div className="card static stack" style={{ gap: 8 }}>
       <div>
         <h2>{title}</h2>
         <p className="faint" style={{ marginTop: 2 }}>{hint}</p>

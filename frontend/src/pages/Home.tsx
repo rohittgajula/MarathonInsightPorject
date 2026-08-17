@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
-import { GarminPanel } from "../components/GarminPanel";
+import { GarminButton } from "../components/GarminButton";
 import { TrendCharts } from "../components/TrendCharts";
 import { dateStr, durStr, paceStr } from "../lib/format";
 import type { Dashboard } from "../lib/types";
@@ -23,6 +23,11 @@ export function Home() {
 
   return (
     <div className="stack" style={{ gap: 22 }}>
+      <div className="pagebar">
+        <span className="eyebrow">Training</span>
+        <GarminButton />
+      </div>
+
       <div className="hero">
         <div className="row split" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
           <div className="row" style={{ gap: 14, alignItems: "flex-start", flexWrap: "nowrap" }}>
@@ -45,9 +50,14 @@ export function Home() {
             <span className="hero-badge mono">{t.weeks_out} weeks to race</span>
           )}
         </div>
+        {t?.adjusted && (
+          <p style={{ marginTop: 14, paddingTop: 12,
+                      borderTop: "1px solid rgba(255,255,255,.22)" }}>
+            <strong>Adjusted from your log.</strong> {t.adjust_reason}
+          </p>
+        )}
       </div>
 
-      <GarminPanel />
 
       <div className="grid-2">
         <div className="card stack" style={{ gap: 0 }}>
@@ -74,19 +84,31 @@ export function Home() {
         <div className="scroll">
           <table>
             <thead>
-              <tr><th>Day</th><th>Session</th><th className="num">Running</th><th className="num">Distance</th></tr>
+              <tr>
+                <th>Day</th><th>Session</th><th>Focus</th>
+                <th>Target pace</th><th>Target HR</th>
+                <th className="num">Running</th><th className="num">Distance</th>
+                <th className="num">Total</th>
+              </tr>
             </thead>
             <tbody>
               {data.week.map((s) => (
                 <tr key={s.date}>
-                  <td>{new Date(s.date + "T00:00:00").toLocaleDateString(undefined,
-                    { weekday: "short", day: "numeric", month: "short" })}</td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    {new Date(s.date + "T00:00:00").toLocaleDateString(undefined,
+                      { weekday: "short", day: "numeric", month: "short" })}
+                  </td>
                   <td>
                     {s.title}
                     {s.note && <span className="chip warn" style={{ marginLeft: 8 }}>{s.note}</span>}
+                    {s.adjusted && <span className="chip accent" style={{ marginLeft: 8 }}>adjusted</span>}
                   </td>
+                  <td className="faint">{s.focus || "—"}</td>
+                  <td className="mono faint">{s.target_pace || "—"}</td>
+                  <td className="mono faint">{s.target_hr || "—"}</td>
                   <td className="num mono">{s.run_minutes ? `${s.run_minutes} min` : "—"}</td>
                   <td className="num mono">{s.distance_km ? `${s.distance_km} km` : "—"}</td>
+                  <td className="num mono">{s.total_minutes ? `${s.total_minutes} min` : "—"}</td>
                 </tr>
               ))}
             </tbody>

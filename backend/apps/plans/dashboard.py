@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from apps.activities.models import Activity
 from apps.journal.models import DailyLog
 
-from . import insights
+from . import insights, readiness
 from .models import Race
 from .template import session_for, upcoming
 
@@ -21,6 +21,9 @@ def _session_dict(s):
         "date": s.date, "kind": s.kind, "title": s.title, "detail": s.detail,
         "plan_week": s.plan_week, "weeks_out": s.weeks_out, "phase": s.phase,
         "note": s.note, "run_minutes": s.run_minutes, "distance_km": s.distance_km,
+        "target_pace": s.target_pace, "target_hr": s.target_hr,
+        "total_minutes": s.total_minutes, "focus": s.focus,
+        "adjusted": s.adjusted, "adjust_reason": s.adjust_reason,
     }
 
 
@@ -47,9 +50,16 @@ def dashboard(request):
     recent_metrics = [a.metrics for a in activities if hasattr(a, "metrics")]
     log_count = DailyLog.objects.filter(athlete=athlete).count()
 
-    today_session = session_for(race.race_date, today) if race else None
-    tomorrow_session = session_for(race.race_date, tomorrow) if race else None
-    week = upcoming(race.race_date, today, 7) if race else []
+    today_session = session_for(race.race_date, today, athlete) if race else None
+    tomorrow_session = session_for(race.race_date, tomorrow, athlete) if race else None
+    week = upcoming(race.race_date, today, 7, athlete) if race else []
+
+    # What the athlete logged most recently eases tomorrow's session if it needs to.
+    latest_log = readiness.log_for(athlete, today)
+    readiness.apply(tomorrow_session, latest_log)
+    for session in week:
+        if session.date == tomorrow:
+            readiness.apply(session, latest_log)
 
     cards = insights.build(athlete, activities[0] if activities else None,
                            recent_metrics, log_count, tomorrow_session)
@@ -75,5 +85,13 @@ def dashboard(request):
         "trend": trend,
         "activity_count": Activity.objects.filter(athlete=athlete).count(),
         "log_count": log_count,
+        "latest_log": (
+            {
+                "log_date": latest_log.log_date, "text": latest_log.text,
+                "sleep_hours": latest_log.sleep_hours,
+                "alcohol_units": latest_log.alcohol_units, "felt": latest_log.felt,
+            }
+            if latest_log else None
+        ),
         "garmin_connected": athlete.garmin_connected,
     })

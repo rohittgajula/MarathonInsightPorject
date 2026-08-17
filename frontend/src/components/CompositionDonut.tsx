@@ -20,7 +20,7 @@ export function CompositionDonut({ metrics }: { metrics: ActivityMetrics }) {
   const runShare = Math.round((100 * metrics.run_time_s) / total);
 
   return (
-    <div className="card stack" style={{ gap: 10 }}>
+    <div className="card static stack" style={{ gap: 10 }}>
       <div>
         <h2>Where the time went</h2>
         <p className="faint" style={{ marginTop: 2 }}>Running, walking and standing still</p>

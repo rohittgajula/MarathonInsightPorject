@@ -62,6 +62,14 @@ class PlannedSession:
     note: str
     run_minutes: float = 0.0
     distance_km: float = 0.0
+    # Concrete targets so the schedule answers "what am I aiming at" per day.
+    target_pace: str = ""
+    target_hr: str = ""
+    total_minutes: float = 0.0
+    focus: str = ""
+    # Set when a daily log moves the session off the template.
+    adjusted: bool = False
+    adjust_reason: str = ""
 
 
 def _fmt(minutes: float) -> str:
@@ -82,8 +90,16 @@ def weeks_out_for(race_date: dt.date, on: dt.date) -> int:
     return (race_date - on).days // 7
 
 
-def session_for(race_date: dt.date, on: dt.date, easy_pace_label: str = "10:00â€“10:45/km") -> PlannedSession:
+def _pace_label(athlete) -> str:
+    def fmt(sec):
+        return f"{int(sec // 60)}:{int(sec % 60):02d}"
+    return f"{fmt(athlete.easy_pace_min)}â€“{fmt(athlete.easy_pace_max)}/km"
+
+
+def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession:
     """The prescribed session for one date."""
+    easy_pace_label = _pace_label(athlete) if athlete else "10:00â€“10:45/km"
+    hr_label = f"{athlete.hr_easy_min}â€“{athlete.hr_easy_max} bpm" if athlete else "130â€“145 bpm"
     weeks_out = weeks_out_for(race_date, on)
     # Before the plan proper starts, hold at week 1 rather than inventing volume.
     key = min(max(weeks_out, 0), 16)
@@ -93,7 +109,8 @@ def session_for(race_date: dt.date, on: dt.date, easy_pace_label: str = "10:00â€
     weekday = on.weekday()
 
     base = dict(
-        date=on, plan_week=plan_week, weeks_out=weeks_out, phase=phase, note=note
+        date=on, plan_week=plan_week, weeks_out=weeks_out, phase=phase, note=note,
+        target_pace=easy_pace_label, target_hr=hr_label,
     )
 
     if on == race_date:
@@ -104,7 +121,8 @@ def session_for(race_date: dt.date, on: dt.date, easy_pace_label: str = "10:00â€
                 "training pace. Hold your run/walk pattern from kilometre one rather "
                 "than running until you have to stop. Walk every water station."
             ),
-            distance_km=long_km, **base,
+            distance_km=long_km, focus="Finish", total_minutes=long_km * 11,
+            **base,
         )
 
     if weekday == LONG_DAY:
@@ -114,7 +132,8 @@ def session_for(race_date: dt.date, on: dt.date, easy_pace_label: str = "10:00â€
                 f"Run/walk the whole way at {easy_pace_label}. This is the session that "
                 "actually builds the distance; treat the midweek work as support for it."
             ),
-            distance_km=long_km, **base,
+            distance_km=long_km, focus="Build distance",
+            total_minutes=round(long_km * 11), **base,
         )
 
     if weekday in INTERVAL_DAYS:
@@ -129,7 +148,8 @@ def session_for(race_date: dt.date, on: dt.date, easy_pace_label: str = "10:00â€
             )
         return PlannedSession(
             kind="intervals", title=title, detail=detail,
-            run_minutes=reps * run_m, **base,
+            run_minutes=reps * run_m, focus="Time on feet",
+            total_minutes=round(reps * (run_m + walk_m) + 10), **base,
         )
 
     return PlannedSession(
@@ -138,9 +158,10 @@ def session_for(race_date: dt.date, on: dt.date, easy_pace_label: str = "10:00â€
             "No running today. A walk, cycle or swim is fine â€” adaptation happens on "
             "the days you don't run."
         ),
-        **base,
+        focus="Recover", target_pace="", target_hr="",
+        **{k: v for k, v in base.items() if k not in ("target_pace", "target_hr")},
     )
 
 
-def upcoming(race_date: dt.date, start: dt.date, days: int = 7) -> list[PlannedSession]:
-    return [session_for(race_date, start + dt.timedelta(days=i)) for i in range(days)]
+def upcoming(race_date: dt.date, start: dt.date, days: int = 7, athlete=None) -> list[PlannedSession]:
+    return [session_for(race_date, start + dt.timedelta(days=i), athlete) for i in range(days)]

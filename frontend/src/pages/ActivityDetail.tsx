@@ -107,14 +107,14 @@ export function ActivityDetail() {
         </div>
       </div>
 
-      <div className="card stack">
+      <div className="card static stack">
         <h2>Route</h2>
         {stream.isLoading && <p className="muted">Loading route…</p>}
         {stream.data && <CourseMap stream={stream.data} segments={a.segments ?? []} />}
         <ChartNotes notes={a.chart_notes?.route} />
       </div>
 
-      <div className="card">
+      <div className="card static">
         {stream.isLoading && <p className="muted">Loading per-second data…</p>}
         {stream.data && athlete.data && (
           <SessionCharts stream={stream.data} athlete={athlete.data}
