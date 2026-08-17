@@ -463,3 +463,49 @@ td.num, th.num { text-align: right; }
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
+
+/* ---- calendar ---- */
+.cal-head, .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cal-head { margin-bottom: 8px; }
+
+.cal-cell {
+  position: relative; min-height: 74px; padding: 7px 8px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  background: var(--surface-2); border: 1px solid transparent; border-radius: 9px;
+  color: var(--ink); font: inherit; cursor: pointer; text-align: left;
+  transition: background .24s var(--ease), border-color .24s var(--ease), transform .24s var(--ease);
+}
+.cal-cell:hover { background: var(--accent-soft); transform: translateY(-2px); }
+.cal-cell.outside { opacity: .4; }
+.cal-cell.today { border-color: var(--accent); }
+.cal-cell.race { background: var(--warn-soft); }
+.cal-cell.selected { border-color: var(--accent); background: var(--accent-soft); }
+
+.cal-num { font-size: 12.5px; font-weight: 650; }
+.cal-label { font-size: 10.5px; color: var(--ink-soft); line-height: 1.3; }
+.cal-dot { width: 6px; height: 6px; border-radius: 50%; position: absolute; top: 9px; right: 8px; }
+/* A filled corner marks a day with recorded data — distinct in shape from the
+   planned-session dot, so the two never rely on colour alone to be told apart. */
+.cal-done {
+  position: absolute; bottom: 7px; right: 7px;
+  width: 8px; height: 8px; border-radius: 2px; background: var(--run);
+}
+.cal-adj {
+  position: absolute; bottom: 6px; left: 8px; font-size: 8.5px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; color: var(--accent);
+}
+
+@media (max-width: 640px) {
+  .cal-cell { min-height: 56px; padding: 5px; }
+  .cal-label { display: none; }
+}
+
+/* ---- warm-up ---- */
+.warmup-layout { display: grid; gap: 18px; grid-template-columns: minmax(230px, 300px) minmax(0, 1fr); }
+@media (max-width: 860px) { .warmup-layout { grid-template-columns: 1fr; } }
+
+.step-num {
+  width: 26px; height: 26px; border-radius: 8px; flex: 0 0 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--accent-soft); color: var(--accent); font-weight: 700; font-size: 13px;
+}

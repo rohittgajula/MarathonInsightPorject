@@ -6,13 +6,17 @@ import { Activities } from "./pages/Activities";
 import { ActivityDetail } from "./pages/ActivityDetail";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
+import { Calendar } from "./pages/Calendar";
 import { Races } from "./pages/Races";
+import { Warmup } from "./pages/Warmup";
 import { usePointerGlow } from "./lib/usePointerGlow";
 import type { Race } from "./lib/types";
 
 const NAV = [
   { to: "/", label: "Tomorrow", end: true },
+  { to: "/calendar", label: "Calendar", end: false },
   { to: "/activities", label: "Activities", end: false },
+  { to: "/warmup", label: "Warm-up", end: false },
   { to: "/races", label: "Races", end: false },
 ];
 
@@ -70,7 +74,9 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/activities" element={<Activities />} />
           <Route path="/activity/:id" element={<ActivityDetail />} />
-          <Route path="/races" element={<Races />} />
+          <Route path="/calendar" element={<Calendar />} />
+        <Route path="/warmup" element={<Warmup />} />
+        <Route path="/races" element={<Races />} />
         </Routes>
         </div>
       </main>

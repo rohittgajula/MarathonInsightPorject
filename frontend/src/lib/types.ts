@@ -152,6 +152,7 @@ export interface GarminStatus {
   connected: boolean;
   name: string;
   error: string;
+  last_sync: string | null;
 }
 
 export interface SyncResult {
@@ -184,4 +185,38 @@ export interface WellnessPoint {
   body_battery_high: number | null;
   load_ratio: number | null;
   training_status: string;
+}
+
+export interface CalendarDay {
+  date: string;
+  is_today: boolean;
+  is_past: boolean;
+  is_race: boolean;
+  planned: PlannedSession | null;
+  activities: {
+    id: number; sport: string; distance_km: number; duration_s: number;
+    run_blocks: number | null; longest_run_s: number | null; avg_run_pace_s: number | null;
+  }[];
+  wellness: {
+    sleep_hours: number | null; sleep_score: number | null;
+    training_readiness: number | null; resting_hr: number | null;
+  } | null;
+  log: { text: string; felt: string } | null;
+}
+
+export interface CalendarResponse {
+  from: string; to: string; today: string;
+  race_date: string | null;
+  days: CalendarDay[];
+}
+
+export interface WarmupExercise {
+  key: string; name: string; duration: string;
+  muscles: string[]; primary: string; why: string; how: string;
+}
+
+export interface WarmupRoutine {
+  total: string; intro: string;
+  muscle_labels: Record<string, string>;
+  exercises: WarmupExercise[];
 }

@@ -70,7 +70,11 @@ def fetch_day(client, day: dt.date) -> dict:
             logger.debug("garmin %s unavailable for %s: %s", label, iso, exc)
             return None
 
+    raw: dict = {}
+
     sleep = attempt("sleep", lambda: client.get_sleep_data(iso))
+    if sleep:
+        raw["sleep"] = sleep
     if sleep:
         daily = _dig(sleep, "dailySleepDTO", default={}) or {}
         out.update(
@@ -90,6 +94,7 @@ def fetch_day(client, day: dt.date) -> dict:
 
     readiness = attempt("training readiness", lambda: client.get_training_readiness(iso))
     if readiness:
+        raw["training_readiness"] = readiness
         first = readiness[0] if isinstance(readiness, list) and readiness else readiness
         out.update(
             training_readiness=_int(_dig(first, "score")),
@@ -98,6 +103,7 @@ def fetch_day(client, day: dt.date) -> dict:
 
     status = attempt("training status", lambda: client.get_training_status(iso))
     if status:
+        raw["training_status"] = status
         latest = _dig(status, "mostRecentTrainingLoadBalance",
                       "metricsTrainingLoadBalanceDTOMap", default={}) or {}
         entry = next(iter(latest.values()), {}) if isinstance(latest, dict) else {}
@@ -130,6 +136,7 @@ def fetch_day(client, day: dt.date) -> dict:
 
     hrv = attempt("hrv", lambda: client.get_hrv_data(iso))
     if hrv:
+        raw["hrv"] = hrv
         out["hrv_status"] = str(_dig(hrv, "hrvSummary", "status", default="") or "")[:24]
         out["hrv_overnight_avg"] = out.get("hrv_overnight_avg") or _int(
             _dig(hrv, "hrvSummary", "lastNightAvg"))
@@ -143,16 +150,33 @@ def fetch_day(client, day: dt.date) -> dict:
 
     stats = attempt("daily stats", lambda: client.get_stats(iso))
     if stats:
+        raw["stats"] = stats
         out.update(
             steps=_int(stats.get("totalSteps")),
             stress_avg=_int(stats.get("averageStressLevel")),
             body_battery_high=_int(stats.get("bodyBatteryHighestValue")),
             body_battery_low=_int(stats.get("bodyBatteryLowestValue")),
+            floors_climbed=_int(stats.get("floorsAscended")),
+            intensity_minutes=_int(stats.get("moderateIntensityMinutes")),
+            spo2_avg=_int(stats.get("averageSpo2")),
+            respiration_avg=_float(stats.get("avgWakingRespirationValue")),
         )
         out["resting_hr"] = out.get("resting_hr") or _int(stats.get("restingHeartRate"))
 
+    vo2 = attempt("vo2max", lambda: client.get_max_metrics(iso))
+    if vo2:
+        raw["max_metrics"] = vo2
+        first = vo2[0] if isinstance(vo2, list) and vo2 else vo2
+        out["vo2max"] = _float(_dig(first, "generic", "vo2MaxPreciseValue")) \
+                        or _float(_dig(first, "generic", "vo2MaxValue"))
+
     # Drop keys that came back empty so an existing row is never overwritten with None.
-    return {k: v for k, v in out.items() if v not in (None, "")}
+    cleaned = {k: v for k, v in out.items() if v not in (None, "")}
+    # The verbatim payloads ride along, so a field we never thought to map can still
+    # be backfilled from history later without re-fetching from Garmin.
+    if raw:
+        cleaned["raw"] = raw
+    return cleaned
 
 
 def sync_wellness(athlete: Athlete, client, days: int = 14) -> dict:

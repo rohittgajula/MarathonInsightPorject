@@ -70,6 +70,17 @@ class ActivityRecord(models.Model):
     latitude = models.FloatField(null=True)
     longitude = models.FloatField(null=True)
 
+    # Running dynamics. Present on an Instinct 2X with a compatible sensor and absent
+    # otherwise, so every one is nullable. Stored now because the raw file has them
+    # and re-parsing later is free, whereas re-collecting a run is not.
+    power_w = models.FloatField(null=True)
+    vertical_oscillation_mm = models.FloatField(null=True)
+    ground_contact_ms = models.FloatField(null=True)
+    stride_length_m = models.FloatField(null=True)
+    vertical_ratio = models.FloatField(null=True)
+    respiration_rate = models.FloatField(null=True)
+    temperature_c = models.FloatField(null=True)
+
     class Meta:
         ordering = ["offset_s"]
         indexes = [models.Index(fields=["activity", "offset_s"])]

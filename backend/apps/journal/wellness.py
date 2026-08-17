@@ -44,6 +44,17 @@ class DailyMetrics(OwnedByAthlete):
 
     steps = models.PositiveIntegerField(null=True, blank=True)
     stress_avg = models.PositiveSmallIntegerField(null=True, blank=True)
+    floors_climbed = models.PositiveSmallIntegerField(null=True, blank=True)
+    intensity_minutes = models.PositiveSmallIntegerField(null=True, blank=True)
+    vo2max = models.FloatField(null=True, blank=True)
+    spo2_avg = models.PositiveSmallIntegerField(null=True, blank=True)
+    respiration_avg = models.FloatField(null=True, blank=True)
+
+    # The complete responses, verbatim. Same principle as keeping the raw .fit file:
+    # today's parser only reads the fields we thought to map, and the ones we did not
+    # are exactly the ones a future question will need. Storing the payload means a
+    # new metric can be backfilled from history instead of re-fetched from Garmin.
+    raw = models.JSONField(default=dict, blank=True)
 
     synced_at = models.DateTimeField(auto_now=True)
 

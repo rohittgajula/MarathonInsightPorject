@@ -187,8 +187,13 @@ def check_connection(athlete: Athlete) -> dict:
     try:
         client = _client(athlete)
         name = client.get_full_name()
-        return {"connected": True, "name": name, "error": ""}
+        return {
+            "connected": True, "name": name, "error": "",
+            "last_sync": athlete.garmin_last_sync,
+        }
     except (GarminAuthError, GarminRateLimited) as exc:
-        return {"connected": False, "name": "", "error": str(exc)}
+        return {"connected": False, "name": "", "error": str(exc),
+                "last_sync": athlete.garmin_last_sync}
     except Exception as exc:  # noqa: BLE001
-        return {"connected": False, "name": "", "error": str(exc)}
+        return {"connected": False, "name": "", "error": str(exc),
+                "last_sync": athlete.garmin_last_sync}

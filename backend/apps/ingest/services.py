@@ -97,6 +97,7 @@ def ingest_fit(raw: RawFitFile, garmin_activity_id: int | None = None) -> Activi
                 altitude_m=s.__dict__.get("_alt"),
                 latitude=s.__dict__.get("_lat"),
                 longitude=s.__dict__.get("_lon"),
+                **(s.__dict__.get("_dyn") or {}),
             )
             for s in parsed.samples
         ],

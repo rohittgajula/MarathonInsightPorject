@@ -104,6 +104,19 @@ def parse(path_or_fileobj) -> ParsedActivity:
         parsed.samples[-1].__dict__["_lat"] = lat * SEMICIRCLE_TO_DEGREES if lat else None
         parsed.samples[-1].__dict__["_lon"] = lon * SEMICIRCLE_TO_DEGREES if lon else None
         parsed.samples[-1].__dict__["_alt"] = record.get("enhanced_altitude") or record.get("altitude")
+        # Running dynamics ride along on the Sample without entering the segmentation
+        # hot path, which stays deliberately narrow.
+        parsed.samples[-1].__dict__["_dyn"] = {
+            "power_w": record.get("power"),
+            "vertical_oscillation_mm": record.get("vertical_oscillation"),
+            "ground_contact_ms": record.get("stance_time"),
+            "stride_length_m": record.get("step_length") / 1000.0
+                               if record.get("step_length") else None,
+            "vertical_ratio": record.get("vertical_ratio"),
+            "respiration_rate": record.get("respiration_rate")
+                                or record.get("enhanced_respiration_rate"),
+            "temperature_c": record.get("temperature"),
+        }
 
     if parsed.total_distance_m == 0.0 and parsed.samples:
         distances = [s.distance_m for s in parsed.samples if s.distance_m is not None]

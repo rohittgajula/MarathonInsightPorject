@@ -32,6 +32,12 @@ export function GarminButton() {
   });
 
   const connected = status.data?.connected === true;
+  const lastSync = status.data?.last_sync
+    ? new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
+        -Math.round((Date.now() - new Date(status.data.last_sync).getTime()) / 60000),
+        "minute",
+      )
+    : null;
   const bulb = status.isLoading ? "pending" : connected ? "on" : "off";
   const label = status.isLoading ? "Checking Garmin…"
     : connected ? `Garmin connected${status.data?.name ? ` as ${status.data.name}` : ""}`
@@ -43,7 +49,9 @@ export function GarminButton() {
       <span className="row" style={{ gap: 7 }} title={label}>
         <i className={`bulb ${bulb}`} aria-hidden="true" />
         <span className="faint" style={{ fontSize: 12.5 }}>
-          {status.isLoading ? "checking" : connected ? "connected" : "not connected"}
+          {status.isLoading ? "checking"
+            : connected ? (lastSync ? `synced ${lastSync}` : "connected")
+            : "not connected"}
         </span>
         {/* Status is announced for screen readers, not carried by the bulb colour alone. */}
         <span className="sr-only" role="status">{label}</span>
