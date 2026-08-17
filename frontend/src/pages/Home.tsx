@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
 import { GarminButton } from "../components/GarminButton";
 import { SessionPlan } from "../components/SessionPlan";
+import { SessionWeather } from "../components/SessionWeather";
 import { TrendCharts } from "../components/TrendCharts";
 import { WellnessCharts } from "../components/WellnessCharts";
 import { dateStr, durStr, paceStr } from "../lib/format";
@@ -62,6 +63,8 @@ export function Home() {
         )}
       </div>
 
+
+      {data.session_weather && <SessionWeather weather={data.session_weather} />}
 
       <SessionPlan steps={data.session_steps ?? []} targets={data.session_targets ?? []} />
 

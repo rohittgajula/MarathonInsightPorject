@@ -33,6 +33,7 @@ class ActivityListSerializer(serializers.ModelSerializer):
             "started_at", "local_date",
             "total_distance_m", "total_timer_s", "total_elapsed_s",
             "avg_hr", "max_hr", "avg_cadence_spm", "calories",
+            "temp_c", "feels_like_c", "humidity_pct", "wind_kmh", "place_name",
             "metrics",
         ]
 

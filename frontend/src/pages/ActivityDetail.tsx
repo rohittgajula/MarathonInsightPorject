@@ -59,8 +59,17 @@ export function ActivityDetail() {
     <div className="stack" style={{ gap: 26 }}>
       <div>
         <Link to="/activities" className="faint" style={{ textDecoration: "none" }}>← All activities</Link>
-        <div className="eyebrow" style={{ marginTop: 10 }}>{dateStr(a.local_date)}</div>
+        <div className="eyebrow" style={{ marginTop: 10 }}>
+          {dateStr(a.local_date)}{a.place_name ? ` · ${a.place_name}` : ""}
+        </div>
         <h1>{km(a.total_distance_m)} km in {durStr(a.total_elapsed_s)}</h1>
+        {a.feels_like_c != null && (
+          <p className="faint" style={{ marginTop: 4 }}>
+            Felt like {a.feels_like_c.toFixed(0)}°C
+            {a.humidity_pct != null && ` at ${a.humidity_pct.toFixed(0)}% humidity`}
+            {a.wind_kmh != null && `, wind ${a.wind_kmh.toFixed(0)} km/h`}
+          </p>
+        )}
       </div>
 
       <div className="grid">

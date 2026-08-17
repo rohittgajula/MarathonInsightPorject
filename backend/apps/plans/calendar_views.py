@@ -15,7 +15,10 @@ from apps.journal.wellness import DailyMetrics
 from . import readiness
 from .models import Race
 from .template import session_for
+from . import niggles as niggle_module
+from . import weekly as weekly_module
 from .coaching import FORM_CUES, TROUBLESHOOTING
+from .race_plan import build as build_race_plan
 from .warmup import routine
 
 
@@ -149,3 +152,42 @@ def technique(request):
     """Running form and troubleshooting — the things a plan assumes you already know."""
     _athlete(request)
     return Response({"cues": FORM_CUES, "troubleshooting": TROUBLESHOOTING})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def weekly(request):
+    athlete = _athlete(request)
+    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+    weeks = weekly_module.recent(athlete, race, weeks=6)
+    return Response({"weeks": [
+        {
+            "start": w.start, "end": w.end, "plan_week": w.plan_week, "phase": w.phase,
+            "planned_sessions": w.planned_sessions, "completed_sessions": w.completed_sessions,
+            "planned_run_minutes": w.planned_run_minutes, "actual_run_minutes": w.actual_run_minutes,
+            "planned_distance_km": w.planned_distance_km, "actual_distance_km": w.actual_distance_km,
+            "longest_run_s": w.longest_run_s, "previous_longest_run_s": w.previous_longest_run_s,
+            "pace_discipline_pct": w.pace_discipline_pct,
+            "avg_sleep_h": w.avg_sleep_h, "sleep_debt_h": w.sleep_debt_h,
+            "niggles": w.niggles, "verdict": w.verdict, "verdict_reason": w.verdict_reason,
+            "off_plan_days": w.off_plan_days, "missed_days": w.missed_days,
+            "in_progress": w.in_progress,
+            "days": w.days,
+        } for w in weeks
+    ]})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def niggles(request):
+    return Response(niggle_module.timeline(_athlete(request)))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def race_plan(request):
+    athlete = _athlete(request)
+    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+    if race is None:
+        return Response({"detail": "No target race set."}, status=404)
+    return Response(build_race_plan(athlete, race))

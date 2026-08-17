@@ -32,6 +32,15 @@ class Activity(OwnedByAthlete):
     total_descent_m = models.FloatField(null=True, blank=True)
     calories = models.PositiveIntegerField(null=True, blank=True)
 
+    # Conditions at the start. Heat is the most under-attributed cause of a bad
+    # session, and without it a hot day reads as lost fitness.
+    temp_c = models.FloatField(null=True, blank=True)
+    feels_like_c = models.FloatField(null=True, blank=True)
+    humidity_pct = models.FloatField(null=True, blank=True)
+    wind_kmh = models.FloatField(null=True, blank=True)
+    weather_checked = models.BooleanField(default=False)
+    place_name = models.CharField(max_length=120, blank=True)
+
     # Set false when the segmentation algorithm changes, to flag for reprocessing.
     metrics_current = models.BooleanField(default=False)
 

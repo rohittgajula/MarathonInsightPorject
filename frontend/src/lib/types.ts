@@ -51,6 +51,11 @@ export interface Activity {
   total_ascent_m?: number | null;
   total_descent_m?: number | null;
   chart_notes?: ChartNotes;
+  temp_c?: number | null;
+  feels_like_c?: number | null;
+  humidity_pct?: number | null;
+  wind_kmh?: number | null;
+  place_name?: string;
 }
 
 export interface StreamPoint {
@@ -162,6 +167,7 @@ export interface Dashboard {
   wellness: WellnessPoint[];
   session_steps: SessionStep[];
   session_targets: SessionTarget[];
+  session_weather: SessionWeather | null;
   up_next: PlannedSession | null;
   up_next_label: string;
   up_next_date: string;
@@ -298,4 +304,45 @@ export interface JournalEntry {
   flags: { pain_area: string; illness: boolean };
   created_at: string;
   updated_at: string;
+}
+
+export interface WeekReview {
+  start: string; end: string; plan_week: number | null; phase: string;
+  planned_sessions: number; completed_sessions: number;
+  planned_run_minutes: number; actual_run_minutes: number;
+  planned_distance_km: number; actual_distance_km: number;
+  longest_run_s: number; previous_longest_run_s: number;
+  pace_discipline_pct: number | null;
+  avg_sleep_h: number | null; sleep_debt_h: number | null;
+  niggles: string[]; off_plan_days: string[]; missed_days: string[];
+  verdict: string; verdict_reason: string; in_progress: boolean;
+  days: { date: string; planned: string; kind: string; done: boolean; prescribed: boolean }[];
+}
+export interface WeeklyResponse { weeks: WeekReview[]; }
+
+export interface NiggleArea {
+  area: string; label: string; count: number; recent_count: number;
+  first_seen: string; last_seen: string; status: string; note: string;
+  mentions: { date: string; text: string }[];
+}
+export interface NiggleResponse {
+  areas: NiggleArea[]; window_days: number; any_recurring: boolean; total_mentions: number;
+}
+
+export interface RacePlan {
+  race_name: string; race_date: string; distance_km: number;
+  goal: string; target_pace: string; opening_pace: string;
+  estimated_finish: string; hr_ceiling: number;
+  splits: { km: number; target_pace: string; cumulative: string; note: string }[];
+  walk_plan: { pattern: string; why: string };
+  before: { when: string; do: string }[];
+  if_it_goes_wrong: { problem: string; answer: string }[];
+}
+
+export interface SessionWeather {
+  date: string; hour: number; place: string;
+  temp_c: number | null; feels_like_c: number | null;
+  humidity_pct: number | null; wind_kmh: number | null;
+  rain_chance_pct: number | null; conditions: string;
+  advice: { tone: string; title: string; detail: string }[];
 }

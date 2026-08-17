@@ -8,6 +8,8 @@ import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
 import { Achievements } from "./pages/Achievements";
 import { Calendar } from "./pages/Calendar";
+import { RaceDay } from "./pages/RaceDay";
+import { Weekly } from "./pages/Weekly";
 import { Journal } from "./pages/Journal";
 import { Settings } from "./pages/Settings";
 import { Races } from "./pages/Races";
@@ -19,12 +21,14 @@ import type { Race } from "./lib/types";
 const NAV = [
   { to: "/", label: "Up next", end: true },
   { to: "/calendar", label: "Calendar", end: false },
+  { to: "/weekly", label: "Weekly review", end: false },
   { to: "/activities", label: "Activities", end: false },
   { to: "/warmup", label: "Warm-up", end: false },
   { to: "/technique", label: "How to run", end: false },
   { to: "/journal", label: "Journal", end: false },
   { to: "/achievements", label: "Achievements", end: false },
   { to: "/settings", label: "Settings", end: false },
+  { to: "/race-day", label: "Race day", end: false },
   { to: "/races", label: "Races", end: false },
 ];
 
@@ -83,6 +87,8 @@ export default function App() {
           <Route path="/activities" element={<Activities />} />
           <Route path="/activity/:id" element={<ActivityDetail />} />
           <Route path="/calendar" element={<Calendar />} />
+        <Route path="/weekly" element={<Weekly />} />
+        <Route path="/race-day" element={<RaceDay />} />
         <Route path="/warmup" element={<Warmup />} />
         <Route path="/technique" element={<Technique />} />
         <Route path="/journal" element={<Journal />} />

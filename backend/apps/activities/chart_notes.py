@@ -370,6 +370,22 @@ def build(activity, athlete, previous=None) -> dict[str, list[dict]]:
                 f"({min(spread):.0f}–{max(spread):.0f} spm).",
             ))
 
+    # ---------------- conditions ----------------
+    # A hot day must not be filed as lost fitness — that is exactly the misreading
+    # this note exists to prevent.
+    if activity.feels_like_c is not None:
+        from apps.ingest.weather import heat_penalty_s_per_km
+
+        penalty = heat_penalty_s_per_km(activity.feels_like_c)
+        if penalty:
+            notes["pace"].append(Note(
+                "neutral",
+                f"It felt like {activity.feels_like_c:.0f} °C"
+                + (f" at {activity.humidity_pct:.0f}% humidity" if activity.humidity_pct else "")
+                + f". Heat alone costs roughly {penalty} s/km at the same effort, so judge "
+                "this session by heart rate rather than pace.",
+            ))
+
     # ---------------- elevation ----------------
     ascent = activity.total_ascent_m
     if ascent is not None and activity.total_distance_m:

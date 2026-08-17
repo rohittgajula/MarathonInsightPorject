@@ -1,8 +1,11 @@
 """Homepage payload: upcoming sessions, insights, and trend series."""
 
 import datetime as dt
+import logging
 
 from django.utils import timezone
+
+logger = logging.getLogger(__name__)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -116,8 +119,18 @@ def dashboard(request):
     last_run = next((a for a in activities if a.sport in RUN_SPORTS), None)
     coach_metrics = {"last_avg_hr": last_run.avg_hr if last_run else None}
 
+    from apps.ingest.weather import forecast as weather_forecast
+
+    session_weather = {}
+    if focus_session and focus_session.kind != "rest":
+        try:
+            session_weather = weather_forecast(athlete, focus_date, hour=6)
+        except Exception:  # noqa: BLE001 — weather is context, never load-bearing
+            logger.warning("session forecast unavailable", exc_info=True)
+
     return Response({
         "wellness": wellness,
+        "session_weather": session_weather,
         "session_steps": coaching.steps_for(focus_session, athlete),
         "session_targets": coaching.targets_for(focus_session, athlete, coach_metrics),
         "today": _session_dict(today_session) if today_session else None,
