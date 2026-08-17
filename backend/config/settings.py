@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "apps.analysis",
     "apps.plans",
     "apps.journal",
+    "apps.achievements",
 ]
 
 MIDDLEWARE = [

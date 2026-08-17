@@ -244,3 +244,24 @@ export interface CompareSeries {
 }
 
 export interface CompareResponse { activities: CompareSeries[]; }
+
+export interface AchievementItem {
+  key: string;
+  name: string;
+  description: string;
+  group: string;
+  unit: string;
+  format: "number" | "duration" | "distance" | "percent";
+  target: number;
+  value: number;
+  progress: number;
+  earned: boolean;
+  earned_on: string | null;
+}
+
+export interface AchievementBoard {
+  earned_count: number;
+  total: number;
+  groups: { name: string; items: AchievementItem[] }[];
+  recent: AchievementItem[];
+}

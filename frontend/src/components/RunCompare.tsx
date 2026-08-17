@@ -21,6 +21,19 @@ import type { Activity, CompareResponse } from "../lib/types";
 // Read from tokens so the ramp follows the theme without JS having to detect it.
 const RAMP = ["var(--r1)", "var(--r2)", "var(--r3)", "var(--r4)", "var(--r5)", "var(--r6)"];
 
+/* Spread the chosen runs across the ramp instead of indexing from position 0.
+   Taking the first N steps meant two runs got the two most recessive colours and the
+   chart looked washed out; the vivid end of the ramp went unused unless you selected
+   six. A single run gets the mid step, which is the same green used everywhere else
+   for running. */
+function rampFor(count: number): string[] {
+  if (count <= 1) return [RAMP[3]];
+  const lo = 1;
+  const hi = RAMP.length - 1;
+  return Array.from({ length: count }, (_, i) =>
+    RAMP[Math.round(lo + (i * (hi - lo)) / (count - 1))]);
+}
+
 const METRICS = [
   { key: "pace", label: "Pace", invert: true },
   { key: "hr", label: "Heart rate", invert: false },
@@ -56,7 +69,7 @@ export function RunCompare({ activities }: { activities: Activity[] }) {
 
   // Oldest first, so the ramp runs light (old) to dark (recent).
   const series = [...(data?.activities ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  const ramp = RAMP;
+  const ramp = rampFor(series.length);
 
   // Merge onto one distance grid keyed by km.
   const merged = new Map<number, Record<string, number | null>>();
@@ -160,7 +173,7 @@ export function RunCompare({ activities }: { activities: Activity[] }) {
             {dateStr(run.date).replace(/,.*/, "")} · {run.distance_km} km
           </span>
         ))}
-        <span className="faint">lighter = older</span>
+        <span className="faint">faded = older, brightest = most recent</span>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import { Activities } from "./pages/Activities";
 import { ActivityDetail } from "./pages/ActivityDetail";
 import { Home } from "./pages/Home";
 import { Login } from "./pages/Login";
+import { Achievements } from "./pages/Achievements";
 import { Calendar } from "./pages/Calendar";
 import { Races } from "./pages/Races";
 import { Warmup } from "./pages/Warmup";
@@ -17,6 +18,7 @@ const NAV = [
   { to: "/calendar", label: "Calendar", end: false },
   { to: "/activities", label: "Activities", end: false },
   { to: "/warmup", label: "Warm-up", end: false },
+  { to: "/achievements", label: "Achievements", end: false },
   { to: "/races", label: "Races", end: false },
 ];
 
@@ -76,6 +78,7 @@ export default function App() {
           <Route path="/activity/:id" element={<ActivityDetail />} />
           <Route path="/calendar" element={<Calendar />} />
         <Route path="/warmup" element={<Warmup />} />
+        <Route path="/achievements" element={<Achievements />} />
         <Route path="/races" element={<Races />} />
         </Routes>
         </div>

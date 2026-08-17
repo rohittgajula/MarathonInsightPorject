@@ -76,11 +76,11 @@ html { scroll-behavior: smooth; }
   :root:not([data-theme="light"]) {
     --ground: #0E1218;
     --surface: #161C24;
-    --surface-2: #1E252F;
+    --surface-2: #232C38;
     --ink: #E8ECF2;
-    --ink-soft: #A3ADBB;
-    --ink-faint: #6C7684;
-    --rule: #28303B;
+    --ink-soft: #B6C0CD;
+    --ink-faint: #8794A3;
+    --rule: #303A47;
     --rule-soft: #1F2731;
 
     --accent: #A99BF5;
@@ -126,11 +126,11 @@ html { scroll-behavior: smooth; }
 :root[data-theme="dark"] {
   --ground: #0E1218;
   --surface: #161C24;
-  --surface-2: #1E252F;
+  --surface-2: #232C38;
   --ink: #E8ECF2;
-  --ink-soft: #A3ADBB;
-  --ink-faint: #6C7684;
-  --rule: #28303B;
+  --ink-soft: #B6C0CD;
+  --ink-faint: #8794A3;
+  --rule: #303A47;
   --rule-soft: #1F2731;
 
   --accent: #A99BF5;
@@ -595,3 +595,35 @@ td.num, th.num { text-align: right; }
 }
 .activity-link:hover { border-color: var(--accent); background: var(--accent-soft); }
 .open-cue { color: var(--accent); font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+
+/* ---- achievements ---- */
+.ach-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); }
+
+.ach {
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--glass-border); border-radius: 12px;
+  padding: 15px 16px; display: flex; flex-direction: column; gap: 10px;
+  transition: transform .3s var(--ease), border-color .3s var(--ease);
+}
+.ach:hover { transform: translateY(-2px); border-color: var(--glass-edge); }
+/* Earned cards carry a tinted ground as well as the tick, so the state is not
+   riding on a single glyph. */
+.ach.earned { border-color: var(--good); background: var(--good-soft); }
+.ach h3 { font-size: 14.5px; }
+
+.ach-badge {
+  flex: 0 0 auto; min-width: 38px; text-align: center;
+  font-size: 11.5px; font-weight: 700; padding: 4px 8px; border-radius: 6px;
+  background: var(--surface-2); color: var(--ink-faint);
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+}
+.ach-badge.on { background: var(--good); color: var(--btn-fg); font-size: 13px; }
+
+.ach-bar { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.ach-bar span {
+  display: block; height: 100%; border-radius: 3px; background: var(--run);
+  transition: width .6s var(--ease);
+}
+.ach.earned .ach-bar span { background: var(--good); }
