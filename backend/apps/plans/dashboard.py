@@ -56,10 +56,11 @@ def dashboard(request):
 
     # What the athlete logged most recently eases tomorrow's session if it needs to.
     latest_log = readiness.log_for(athlete, today)
-    readiness.apply(tomorrow_session, latest_log)
+    latest_metrics = readiness.metrics_for(athlete, today)
+    readiness.apply(tomorrow_session, latest_log, latest_metrics)
     for session in week:
         if session.date == tomorrow:
-            readiness.apply(session, latest_log)
+            readiness.apply(session, latest_log, latest_metrics)
 
     cards = insights.build(athlete, activities[0] if activities else None,
                            recent_metrics, log_count, tomorrow_session)
@@ -77,7 +78,28 @@ def dashboard(request):
         for a in reversed(activities)
     ]
 
+    from apps.journal.wellness import DailyMetrics
+
+    wellness = [
+        {
+            "date": m.metric_date,
+            "sleep_hours": m.sleep_hours,
+            "sleep_need_hours": m.sleep_need_hours,
+            "sleep_deficit_hours": m.sleep_deficit_hours,
+            "sleep_score": m.sleep_score,
+            "training_readiness": m.training_readiness,
+            "resting_hr": m.resting_hr,
+            "body_battery_high": m.body_battery_high,
+            "load_ratio": m.load_ratio,
+            "training_status": m.training_status,
+        }
+        for m in reversed(
+            list(DailyMetrics.objects.filter(athlete=athlete).order_by("-metric_date")[:28])
+        )
+    ]
+
     return Response({
+        "wellness": wellness,
         "today": _session_dict(today_session) if today_session else None,
         "tomorrow": _session_dict(tomorrow_session) if tomorrow_session else None,
         "week": [_session_dict(s) for s in week],

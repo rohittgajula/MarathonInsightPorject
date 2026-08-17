@@ -2,6 +2,8 @@ import re
 
 from django.db import models
 
+from .wellness import DailyMetrics  # noqa: F401  (registered via this module)
+
 from apps.athletes.models import OwnedByAthlete
 
 

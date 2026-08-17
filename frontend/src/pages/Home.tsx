@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
 import { GarminButton } from "../components/GarminButton";
 import { TrendCharts } from "../components/TrendCharts";
+import { WellnessCharts } from "../components/WellnessCharts";
 import { dateStr, durStr, paceStr } from "../lib/format";
 import type { Dashboard } from "../lib/types";
 
@@ -116,7 +117,21 @@ export function Home() {
         </div>
       </div>
 
-      <TrendCharts trend={data.trend} />
+      <div>
+        <div className="row split" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+          <h2>From your watch</h2>
+          <span className="faint">Sleep, readiness and load — measured, not typed</span>
+        </div>
+        <WellnessCharts wellness={data.wellness ?? []} />
+      </div>
+
+      <div>
+        <div className="row split" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+          <h2>From your runs</h2>
+          <span className="faint">Derived from the per-second data in each session</span>
+        </div>
+        <TrendCharts trend={data.trend} />
+      </div>
 
       {data.trend.length > 0 && (
         <div className="card stack">

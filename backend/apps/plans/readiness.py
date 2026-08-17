@@ -34,15 +34,58 @@ class Adjustment:
     downgrade_to_rest: bool = False
 
 
-def evaluate(log) -> Adjustment:
-    """Read one daily log and decide whether tomorrow should be eased."""
-    if log is None:
-        return Adjustment(False)
+# Garmin's readiness score is 0-100. Below this the watch itself is saying rest.
+LOW_READINESS = 35
+POOR_SLEEP_SCORE = 50
+# Acute:chronic load above this is the standard ramping-too-fast flag.
+HIGH_LOAD_RATIO = 1.5
 
+
+def evaluate(log, metrics=None) -> Adjustment:
+    """Decide whether the next session should be eased.
+
+    Measured data wins over self-reported text when both exist: Garmin knows the
+    athlete slept 5h26m and scored it against their personal sleep need, whereas the
+    log only knows what they thought to type. The text log still carries what the
+    watch cannot see — alcohol, and how they actually feel.
+    """
     reasons: list[str] = []
     to_rest = False
 
-    if log.sleep_hours is not None:
+    measured_sleep = None
+    if metrics is not None:
+        measured_sleep = metrics.sleep_hours
+
+        if metrics.training_readiness is not None and metrics.training_readiness < LOW_READINESS:
+            reasons.append(f"Garmin puts your training readiness at {metrics.training_readiness}/100")
+            to_rest = True
+
+        deficit = metrics.sleep_deficit_hours
+        if deficit is not None and deficit >= 1.5:
+            reasons.append(f"you slept {deficit:g} h less than your body needed")
+
+        if metrics.sleep_score is not None and metrics.sleep_score < POOR_SLEEP_SCORE:
+            reasons.append(f"a sleep score of {metrics.sleep_score}")
+
+        ratio = metrics.load_ratio
+        if ratio is not None and ratio > HIGH_LOAD_RATIO:
+            reasons.append(f"your training load ratio is {ratio} — ramping faster than you are absorbing")
+
+        if measured_sleep is not None:
+            if measured_sleep < VERY_SHORT_SLEEP_H:
+                reasons.append(f"your watch recorded {measured_sleep:g} h of sleep")
+                to_rest = True
+            elif measured_sleep < SHORT_SLEEP_H:
+                reasons.append(f"your watch recorded {measured_sleep:g} h of sleep")
+
+    if log is None:
+        if not reasons:
+            return Adjustment(False)
+        joined = reasons[0] if len(reasons) == 1 else ", ".join(reasons[:-1]) + " and " + reasons[-1]
+        return Adjustment(True, joined, to_rest)
+
+    # Only fall back to the typed sleep figure when the watch did not measure one.
+    if measured_sleep is None and log.sleep_hours is not None:
         if log.sleep_hours < VERY_SHORT_SLEEP_H:
             reasons.append(f"you logged {log.sleep_hours:g} h of sleep")
             to_rest = True
@@ -66,12 +109,12 @@ def evaluate(log) -> Adjustment:
     return Adjustment(True, joined, to_rest)
 
 
-def apply(session, log) -> None:
-    """Mutate a PlannedSession in place when the log calls for an easier day."""
+def apply(session, log, metrics=None) -> None:
+    """Mutate a PlannedSession in place when the day's data calls for an easier one."""
     if session is None or session.kind in ("rest", "race"):
         return
 
-    verdict = evaluate(log)
+    verdict = evaluate(log, metrics)
     if not verdict.applied:
         return
 
@@ -115,5 +158,16 @@ def log_for(athlete, on: dt.date):
     return (
         DailyLog.objects.filter(athlete=athlete, log_date__lte=on)
         .order_by("-log_date", "-created_at")
+        .first()
+    )
+
+
+def metrics_for(athlete, on: dt.date):
+    """The most recent measured day at or before `on`."""
+    from apps.journal.wellness import DailyMetrics
+
+    return (
+        DailyMetrics.objects.filter(athlete=athlete, metric_date__lte=on)
+        .order_by("-metric_date")
         .first()
     )

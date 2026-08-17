@@ -142,6 +142,7 @@ export interface Dashboard {
   week: PlannedSession[];
   insights: { tone: string; headline: string; detail: string }[];
   trend: TrendPoint[];
+  wellness: WellnessPoint[];
   activity_count: number;
   log_count: number;
   garmin_connected: boolean;
@@ -170,3 +171,17 @@ export type ChartNotes = Record<
   "shape" | "route" | "pace" | "hr" | "cadence" | "elevation",
   ChartNote[]
 >;
+
+
+export interface WellnessPoint {
+  date: string;
+  sleep_hours: number | null;
+  sleep_need_hours: number | null;
+  sleep_deficit_hours: number | null;
+  sleep_score: number | null;
+  training_readiness: number | null;
+  resting_hr: number | null;
+  body_battery_high: number | null;
+  load_ratio: number | null;
+  training_status: string;
+}
