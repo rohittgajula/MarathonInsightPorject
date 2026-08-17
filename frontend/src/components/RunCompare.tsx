@@ -18,20 +18,14 @@ import type { Activity, CompareResponse } from "../lib/types";
    candidates sat at ΔE 1.1 for protanopia); a one-hue ramp sidesteps that entirely and
    is the honest encoding for ordered data. */
 
-const RAMP_LIGHT = ["#7FC0AD", "#57AC93", "#329677", "#158060", "#0A6650", "#04473A"];
-const RAMP_DARK = ["#27564A", "#2F7A63", "#38A27F", "#3FBF9E", "#6FD6BB", "#A6E8D6"];
+// Read from tokens so the ramp follows the theme without JS having to detect it.
+const RAMP = ["var(--r1)", "var(--r2)", "var(--r3)", "var(--r4)", "var(--r5)", "var(--r6)"];
 
 const METRICS = [
   { key: "pace", label: "Pace", invert: true },
   { key: "hr", label: "Heart rate", invert: false },
   { key: "cadence", label: "Cadence", invert: false },
 ] as const;
-
-function isDark() {
-  const explicit = document.documentElement.getAttribute("data-theme");
-  if (explicit) return explicit === "dark";
-  return window.matchMedia("(prefers-color-scheme: dark)").matches;
-}
 
 export function RunCompare({ activities }: { activities: Activity[] }) {
   const runs = activities.filter((a) => a.sport.includes("run"));
@@ -62,7 +56,7 @@ export function RunCompare({ activities }: { activities: Activity[] }) {
 
   // Oldest first, so the ramp runs light (old) to dark (recent).
   const series = [...(data?.activities ?? [])].sort((a, b) => a.date.localeCompare(b.date));
-  const ramp = isDark() ? RAMP_DARK : RAMP_LIGHT;
+  const ramp = RAMP;
 
   // Merge onto one distance grid keyed by km.
   const merged = new Map<number, Record<string, number | null>>();

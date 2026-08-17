@@ -46,6 +46,19 @@ html { scroll-behavior: smooth; }
   --warn-soft: #F7E7DA;
   --band: rgba(14, 124, 102, .08);
 
+
+  /* Chart series palettes, validated rather than chosen by eye.
+
+     --s1..s4 are categorical (pace / HR / cadence / elevation). Light is Okabe-Ito,
+     which sits at the CVD separation floor — legal only because each series also
+     carries its own dash pattern as a second encoding. Hand-rolled alternatives were
+     worse: every purple/blue pair tried collapsed to deltaE 3-5 under protanopia.
+
+     --r1..r6 are an ordinal ramp for comparing runs over time, light = older. */
+  --s1: #009E73; --s2: #0072B2; --s3: #D55E00; --s4: #CC79A7;
+  --r1: #7FC0AD; --r2: #57AC93; --r3: #329677;
+  --r4: #158060; --r5: #0A6650; --r6: #04473A;
+
   --shadow:
     0 1px 1px rgba(22, 26, 33, .03),
     0 2px 4px rgba(22, 26, 33, .03),
@@ -92,6 +105,11 @@ html { scroll-behavior: smooth; }
     --warn-soft: #33241A;
     --band: rgba(63, 191, 158, .11);
 
+
+    --s1: #4FD6B0; --s2: #F0A24B; --s3: #B39DF5; --s4: #F2F0A0;
+    --r1: #27564A; --r2: #2F7A63; --r3: #38A27F;
+    --r4: #3FBF9E; --r5: #6FD6BB; --r6: #A6E8D6;
+
     --shadow:
       0 1px 1px rgba(0, 0, 0, .18),
       0 2px 4px rgba(0, 0, 0, .16),
@@ -136,6 +154,11 @@ html { scroll-behavior: smooth; }
   --warn: #E6924F;
   --warn-soft: #33241A;
   --band: rgba(63, 191, 158, .11);
+
+
+  --s1: #4FD6B0; --s2: #F0A24B; --s3: #B39DF5; --s4: #F2F0A0;
+  --r1: #27564A; --r2: #2F7A63; --r3: #38A27F;
+  --r4: #3FBF9E; --r5: #6FD6BB; --r6: #A6E8D6;
 
   --shadow:
     0 1px 1px rgba(0, 0, 0, .18),
@@ -562,3 +585,13 @@ td.num, th.num { text-align: right; }
   letter-spacing: .05em; text-transform: uppercase; color: var(--accent);
   background: var(--accent-soft); border-radius: 3px; padding: 1px 4px;
 }
+
+.activity-link {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  flex-wrap: wrap; text-decoration: none; color: var(--ink);
+  padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  border: 1px solid transparent;
+  transition: border-color .24s var(--ease), background .24s var(--ease);
+}
+.activity-link:hover { border-color: var(--accent); background: var(--accent-soft); }
+.open-cue { color: var(--accent); font-size: 12.5px; font-weight: 650; white-space: nowrap; }

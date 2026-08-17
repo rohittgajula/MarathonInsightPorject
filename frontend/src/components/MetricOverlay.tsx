@@ -25,9 +25,15 @@ const METRICS: { key: Key; label: string; unit: string; invert?: boolean }[] = [
   { key: "elevation", label: "Elevation", unit: "m" },
 ];
 
-// Dash patterns so the series stay distinguishable without relying on colour alone.
-const DASH: Record<Key, string | undefined> = {
-  pace: undefined, hr: "6 3", cadence: "2 3", elevation: "8 3 2 3",
+/* Colour is fixed per metric, not per position, so toggling one series never
+   repaints the others. The dash patterns are not decoration: the light palette sits
+   at the colour-vision separation floor, which is only acceptable with a second
+   encoding carrying the same information. */
+const STYLE: Record<Key, { colour: string; dash?: string }> = {
+  pace: { colour: "var(--s1)" },
+  hr: { colour: "var(--s2)", dash: "6 3" },
+  cadence: { colour: "var(--s3)", dash: "2 3" },
+  elevation: { colour: "var(--s4)", dash: "8 3 2 3" },
 };
 
 const SMOOTH = 15;
@@ -100,8 +106,12 @@ export function MetricOverlay(
           {METRICS.map((m) => (
             <button
               key={m.key}
-              className={on.includes(m.key) ? "" : "ghost"}
-              style={{ padding: "5px 11px", fontSize: 12.5 }}
+              className="ghost"
+              style={{
+                padding: "5px 11px", fontSize: 12.5,
+                borderLeft: `4px solid ${on.includes(m.key) ? STYLE[m.key].colour : "var(--rule)"}`,
+                color: on.includes(m.key) ? "var(--ink)" : "var(--ink-faint)",
+              }}
               onClick={() => toggle(m.key)}
               aria-pressed={on.includes(m.key)}
             >
@@ -145,11 +155,11 @@ export function MetricOverlay(
               );
             }}
           />
-          {METRICS.filter((m) => on.includes(m.key)).map((m, i) => (
+          {METRICS.filter((m) => on.includes(m.key)).map((m) => (
             <Line
               key={m.key} type="monotone" dataKey={m.key}
-              stroke={i === 0 ? "var(--run)" : i === 1 ? "var(--accent)" : "var(--walk)"}
-              strokeDasharray={DASH[m.key]}
+              stroke={STYLE[m.key].colour}
+              strokeDasharray={STYLE[m.key].dash}
               strokeWidth={2} dot={false} connectNulls isAnimationActive={false}
             />
           ))}

@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { DayNote } from "../components/DayNote";
 import { WeekPlanner } from "../components/WeekPlanner";
@@ -26,7 +26,6 @@ function iso(d: Date) {
 export function Calendar() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selected, setSelected] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   // Pad to whole weeks so the grid never has a ragged first or last row.
   const gridStart = new Date(month);
@@ -92,19 +91,12 @@ export function Calendar() {
                   info?.is_race ? "race" : "",
                   selected === key ? "selected" : "",
                 ].join(" ")}
-                onClick={() => {
-                  // A day with exactly one recorded activity jumps straight to it —
-                  // that is the thing you want when clicking a past date. Anything
-                  // else opens the day panel, where the plan and every activity sit.
-                  const acts = info?.activities ?? [];
-                  if (acts.length === 1) navigate(`/activity/${acts[0].id}`);
-                  else setSelected(key);
-                }}
-                title={
-                  (info?.activities?.length === 1 ? "Open this activity. " : "") +
-                  (planned?.adjusted ? planned.adjust_reason : "")
-                  || undefined
-                }
+                // Selecting opens the day panel. Jumping straight to the activity
+                // would hide the plan, the adjustment reason and that day's sleep —
+                // the panel is where the day is actually explained, and it offers the
+                // link onward.
+                onClick={() => setSelected(key)}
+                title={planned?.adjusted ? planned.adjust_reason : undefined}
                 aria-label={
                   `${key}${planned ? `, planned ${planned.title}` : ""}` +
                   (planned?.adjusted ? `. Adjusted: ${planned.adjust_reason}` : "") +
@@ -184,18 +176,20 @@ function DayDetail({ day }: { day: CalendarDay }) {
         <div className="stack" style={{ gap: 8, borderTop: "1px solid var(--rule-soft)", paddingTop: 12 }}>
           <div className="eyebrow">Recorded</div>
           {day.activities.map((a) => (
-            <Link key={a.id} to={`/activity/${a.id}`} className="row"
-                  style={{ gap: 14, textDecoration: "none" }}>
-              <span className="chip">{a.sport}</span>
-              <span className="mono">{a.distance_km} km</span>
-              <span className="mono faint">{durStr(a.duration_s)}</span>
-              {a.run_blocks ? (
-                <>
-                  <span className="mono faint">{a.run_blocks} blocks</span>
-                  <span className="mono faint">longest {durStr(a.longest_run_s)}</span>
-                  <span className="mono faint">{paceStr(a.avg_run_pace_s)}/km</span>
-                </>
-              ) : null}
+            <Link key={a.id} to={`/activity/${a.id}`} className="activity-link">
+              <span className="row" style={{ gap: 12 }}>
+                <span className="chip">{a.sport}</span>
+                <span className="mono">{a.distance_km} km</span>
+                <span className="mono faint">{durStr(a.duration_s)}</span>
+                {a.run_blocks ? (
+                  <>
+                    <span className="mono faint">{a.run_blocks} blocks</span>
+                    <span className="mono faint">longest {durStr(a.longest_run_s)}</span>
+                    <span className="mono faint">{paceStr(a.avg_run_pace_s)}/km</span>
+                  </>
+                ) : null}
+              </span>
+              <span className="open-cue">Open activity →</span>
             </Link>
           ))}
         </div>
