@@ -107,7 +107,7 @@ export function ActivityDetail() {
       <div className="card">
         {stream.isLoading && <p className="muted">Loading per-second data…</p>}
         {stream.data && athlete.data && (
-          <SessionCharts stream={stream.data} athlete={athlete.data} />
+          <SessionCharts stream={stream.data} athlete={athlete.data} segments={a.segments ?? []} />
         )}
       </div>
 
