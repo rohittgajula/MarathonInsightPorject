@@ -67,7 +67,7 @@ export function WeekTable({ today }: { today: string }) {
             <tr>
               <th>Day</th><th>Session</th><th>Focus</th>
               <th>Target pace</th><th>Target HR</th>
-              <th className="num">Running</th><th className="num">Distance</th>
+              <th className="num">Run time</th><th className="num">Distance</th>
               <th className="num">Total</th>
             </tr>
           </thead>

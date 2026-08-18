@@ -679,3 +679,24 @@ td.num, th.num { text-align: right; }
   background: var(--warn-soft);
 }
 .adjust-note.critical .eyebrow { color: var(--warn); }
+
+/* Table headings must never break mid-word. The scoped `overflow-wrap: anywhere` on
+   .mono was reaching into table cells and splitting "RUNNING" into "RUNN ING" and
+   "110–130 bpm" across two lines. The .scroll wrapper already handles overflow, so
+   these can stay on one line and the table scrolls instead. */
+th {
+  white-space: nowrap;
+  word-break: keep-all;
+  overflow-wrap: normal;
+  hyphens: none;
+}
+
+/* Numeric cells hold single values with units — never split those either. */
+td.num, td .mono, td.mono {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+td.num, td.mono { white-space: nowrap; }
+
+/* Column labels get a touch less tracking so eight of them fit before scrolling. */
+table th { letter-spacing: .07em; }
