@@ -163,11 +163,17 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
             kind="walk", title="Easy walk — 25–30 min",
             detail=(
                 "Brisk walking, no running. It builds aerobic base with none of the "
-                "impact load, which is exactly what a body adapting to running needs."
+                "impact load, which is exactly what a body adapting to running needs. "
+                "Quick enough that talking takes a little effort."
             ),
             focus="Active recovery", total_minutes=28,
-            **{k: v for k, v in base.items() if k not in ("target_pace",)},
-            target_pace="",
+            # A walk has real targets; leaving them blank made the row read as
+            # "nothing prescribed" when this is prescribed work.
+            distance_km=2.5,
+            **{k: v for k, v in base.items() if k not in ("target_pace", "target_hr")},
+            target_pace="9:00–11:00/km",
+            target_hr=f"{max(athlete.hr_easy_min - 20, 90)}–{athlete.hr_easy_min} bpm"
+                      if athlete else "110–130 bpm",
         )
 
     if day_type == "cross":
@@ -202,9 +208,9 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
         kind="rest", title="Rest or easy walk",
         detail=(
             "No running today. A walk, cycle or swim is fine — adaptation happens on "
-            "the days you don't run."
+            "the days you don't run. If you do walk, 20–30 minutes easy is plenty."
         ),
-        focus="Recover", target_pace="", target_hr="",
+        focus="Recover", target_pace="optional walk, easy", target_hr="",
         **{k: v for k, v in base.items() if k not in ("target_pace", "target_hr")},
     )
 

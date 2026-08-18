@@ -13,6 +13,7 @@ interface Paged<T> { results: T[]; }
 export function DailyLogBox({ today }: { today?: string }) {
   const [text, setText] = useState("");
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
   const queryClient = useQueryClient();
 
   const logs = useQuery({
@@ -23,8 +24,14 @@ export function DailyLogBox({ today }: { today?: string }) {
   const save = useMutation({
     mutationFn: (body: { text: string }) =>
       api.post<DailyLog>("/logs/", { ...body, log_date: todayDate }),
-    onSuccess: () => {
-      setText("");
+    onSuccess: (saved) => {
+      // Deliberately NOT cleared. Clearing emptied the box on a successful save and
+      // the prefill guard then refused to refill it, so a save that worked looked
+      // exactly like one that failed.
+      setText(saved.text);
+      setLoadedFor(todayDate);
+      setJustSaved(true);
+      window.setTimeout(() => setJustSaved(false), 2500);
       invalidateTrainingData(queryClient);
     },
   });
@@ -65,9 +72,12 @@ export function DailyLogBox({ today }: { today?: string }) {
           <span className="faint">
             Sleep, alcohol and mood are picked out automatically.
           </span>
-          <button type="submit" disabled={save.isPending || !text.trim()}>
-            {save.isPending ? "Saving…" : todaysLog ? "Update today's entry" : "Save entry"}
-          </button>
+          <div className="row" style={{ gap: 8 }}>
+            {justSaved && <span className="chip good">Saved</span>}
+            <button type="submit" disabled={save.isPending || !text.trim()}>
+              {save.isPending ? "Saving…" : todaysLog ? "Update today's entry" : "Save entry"}
+            </button>
+          </div>
         </div>
         {save.error && <p className="error" style={{ margin: 0 }}>{(save.error as Error).message}</p>}
       </form>

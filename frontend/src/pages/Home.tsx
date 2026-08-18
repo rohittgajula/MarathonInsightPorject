@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
 import { GarminButton } from "../components/GarminButton";
 import { SessionPlan } from "../components/SessionPlan";
+import { WeekTable } from "../components/WeekTable";
 import { SessionWeather } from "../components/SessionWeather";
 import { TrendCharts } from "../components/TrendCharts";
 import { WellnessCharts } from "../components/WellnessCharts";
@@ -100,45 +101,7 @@ export function Home() {
         <DailyLogBox today={data.local_date} />
       </div>
 
-      <div className="card stack">
-        <div className="row split" style={{ justifyContent: "space-between" }}>
-          <h2>This week</h2>
-          <span className="faint">Tue and Thu intervals · Sunday long run</span>
-        </div>
-        <div className="scroll">
-          <table>
-            <thead>
-              <tr>
-                <th>Day</th><th>Session</th><th>Focus</th>
-                <th>Target pace</th><th>Target HR</th>
-                <th className="num">Running</th><th className="num">Distance</th>
-                <th className="num">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.week.map((s) => (
-                <tr key={s.date}>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    {new Date(s.date + "T00:00:00").toLocaleDateString(undefined,
-                      { weekday: "short", day: "numeric", month: "short" })}
-                  </td>
-                  <td>
-                    {s.title}
-                    {s.note && <span className="chip warn" style={{ marginLeft: 8 }}>{s.note}</span>}
-                    {s.adjusted && <span className="chip accent" style={{ marginLeft: 8 }}>adjusted</span>}
-                  </td>
-                  <td className="faint">{s.focus || "—"}</td>
-                  <td className="mono faint">{s.target_pace || "—"}</td>
-                  <td className="mono faint">{s.target_hr || "—"}</td>
-                  <td className="num mono">{s.run_minutes ? `${s.run_minutes} min` : "—"}</td>
-                  <td className="num mono">{s.distance_km ? `${s.distance_km} km` : "—"}</td>
-                  <td className="num mono">{s.total_minutes ? `${s.total_minutes} min` : "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <WeekTable today={data.local_date} />
 
       <div>
         <div className="row split" style={{ justifyContent: "space-between", marginBottom: 12 }}>

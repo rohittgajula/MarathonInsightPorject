@@ -196,12 +196,13 @@ def apply(session, log, metrics=None) -> None:
                 "You lose nothing from one session moved, and you keep the week intact."
             )
             session.total_minutes = 28
-        session.kind = "rest"
+        session.kind = "walk" if not painful else "rest"
         session.focus = "Recover"
         session.run_minutes = 0.0
-        # A walk day has no pace or heart-rate target to hit.
-        session.target_pace = ""
-        session.target_hr = ""
+        session.distance_km = 0.0 if painful else 2.5
+        # An eased day is still a walk with targets, not a blank row.
+        session.target_pace = "" if painful else "9:00–11:00/km"
+        session.target_hr = "" if painful else "110–130 bpm"
         return
 
     # Otherwise keep the session but cut the running volume roughly in half.
