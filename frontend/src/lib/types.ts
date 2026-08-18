@@ -119,7 +119,9 @@ export interface DailyLog {
   stressed: boolean;
   travel: boolean;
   detected: string[];
+  logged_at: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface SessionStep { label: string; detail: string; duration: string; }

@@ -84,6 +84,10 @@ export function DailyLogBox({ today }: { today?: string }) {
 
       {todaysLog && (
         <div className="row" style={{ gap: 7 }}>
+          <span className="faint mono">
+            {todaysLog.log_date}
+            {todaysLog.logged_at && ` · written ${todaysLog.logged_at}`}
+          </span>
           {(todaysLog.detected ?? []).map((d) => (
             <span key={d} className="chip good">{d}</span>
           ))}
@@ -99,7 +103,9 @@ export function DailyLogBox({ today }: { today?: string }) {
           {earlier.map((l) => (
             <div key={l.id} className="stack" style={{ gap: 4 }}>
               <div className="row" style={{ gap: 7 }}>
-                <span className="faint mono">{l.log_date}</span>
+                <span className="faint mono">
+                  {l.log_date}{l.logged_at && ` · ${l.logged_at}`}
+                </span>
                 {(l.detected ?? []).map((d) => (
                   <span key={d} className="chip good">{d}</span>
                 ))}

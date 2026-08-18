@@ -14,15 +14,36 @@ class DailyLogSerializer(serializers.ModelSerializer):
             "id", "log_date", "text",
             "alcohol_units", "sleep_hours", "sleep_quality", "felt",
             "pain_area", "illness", "stressed", "travel",
-            "detected", "created_at",
+            "detected", "created_at", "updated_at", "logged_at",
         ]
         # Structured fields are derived from `text` on save, never posted directly.
         read_only_fields = [
             "id", "alcohol_units", "sleep_hours", "sleep_quality", "felt",
-            "pain_area", "illness", "stressed", "travel", "detected", "created_at",
+            "pain_area", "illness", "stressed", "travel", "detected",
+            "created_at", "updated_at", "logged_at",
         ]
 
     detected = serializers.SerializerMethodField()
+    logged_at = serializers.SerializerMethodField()
+
+    def get_logged_at(self, obj) -> str:
+        """When this entry was last written, in the athlete's own clock.
+
+        Formatted server-side rather than sent as UTC for the browser to convert:
+        the athlete's configured timezone and the browser's need not match, and this
+        app has already been bitten once by assuming they do.
+        """
+        from zoneinfo import ZoneInfo
+
+        stamp = obj.updated_at or obj.created_at
+        if not stamp:
+            return ""
+        try:
+            zone = ZoneInfo(obj.athlete.timezone or "UTC")
+        except Exception:
+            zone = ZoneInfo("UTC")
+        local = stamp.astimezone(zone)
+        return local.strftime("%H:%M")
 
     def get_detected(self, obj) -> list:
         """What the parser actually took from the text.
