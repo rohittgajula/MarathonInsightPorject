@@ -22,11 +22,32 @@ def _fmt(minutes: float) -> str:
 
 
 def steps_for(session, athlete) -> list[dict]:
-    """The session as an ordered list of things to do."""
-    if session is None or session.kind in ("rest",):
+    """The session as an ordered list of things to do.
+
+    Everything is derived from the session, including whether a warm-up belongs at
+    all: prescribing an activation routine and a cool-down around a recovery walk
+    adds ceremony to the one day whose whole purpose is doing less.
+    """
+    if session is None or session.kind == "rest":
         return []
 
     pace = session.target_pace or ""
+
+    if session.kind == "walk":
+        minutes = int(session.total_minutes) if session.total_minutes else 28
+        return [{
+            "label": "The walk",
+            "detail": (
+                f"About {minutes} minutes at {pace}, brisk enough that talking takes a "
+                "little effort. No warm-up needed and nothing to build up to — the walk "
+                "is the session."
+                if pace else
+                f"About {minutes} minutes brisk walking. The walk is the session — no "
+                "warm-up needed."
+            ),
+            "duration": f"{minutes} min",
+        }]
+
     steps: list[dict] = [{
         "label": "Warm up",
         "detail": "5 minutes brisk walking, plus the activation routine on the Warm-up page.",
@@ -61,13 +82,7 @@ def steps_for(session, athlete) -> list[dict]:
                 "Start at the back. First kilometre 30 s/km slower than training pace. "
                 "Hold your run/walk pattern from kilometre one."
             ),
-            "duration": "10 km",
-        })
-    elif session.kind == "walk":
-        steps.append({
-            "label": "Main set",
-            "detail": "25–30 minutes brisk walking, quick enough that talking takes effort.",
-            "duration": "25–30 min",
+            "duration": f"{session.distance_km:g} km" if session.distance_km else "Race",
         })
 
     steps.append({
@@ -79,36 +94,60 @@ def steps_for(session, athlete) -> list[dict]:
 
 
 def targets_for(session, athlete, metrics=None) -> list[dict]:
-    """The numbers to hold during the session, each with what it means in the body."""
+    """The numbers to hold during the session, each with what it means in the body.
+
+    Read from the session rather than from the athlete's defaults. The session is the
+    thing that changes — a readiness downgrade turns an interval day into a walk with
+    a different pace band, a lower heart-rate range and no run cadence — and pulling
+    the numbers from the profile instead meant the card confidently prescribed a
+    running heart rate for a walk.
+    """
     if session is None or session.kind == "rest":
         return []
 
-    out = [
-        {
+    walking = session.kind == "walk"
+    out = []
+
+    if session.target_pace:
+        out.append({
             "label": "Pace",
-            "value": session.target_pace or "easy",
-            "note": "Slow enough to speak a full sentence. If you cannot, you are too fast.",
-        },
-        {
+            "value": session.target_pace,
+            "note": ("Brisk enough that talking takes a little effort, but you are not "
+                     "breathing hard." if walking else
+                     "Slow enough to speak a full sentence. If you cannot, you are too fast."),
+        })
+
+    if session.target_hr:
+        out.append({
             "label": "Heart rate",
-            "value": f"{athlete.hr_easy_min}–{athlete.hr_easy_max} bpm",
-            "note": "The range you could hold for an hour. This is the number to obey.",
-        },
-        {
+            "value": session.target_hr,
+            "note": ("Comfortably below your running range — this is recovery, and going "
+                     "harder defeats the point of the day." if walking else
+                     "The range you could hold for an hour. This is the number to obey."),
+        })
+
+    if not walking:
+        out.append({
             "label": "Walk when above",
             "value": f"{athlete.hr_ceiling} bpm",
-            "note": "Cross this and walk until it drops back under "
-                    f"{athlete.hr_easy_min}. Not a failure — it is the plan working.",
-        },
-        {
+            "note": ("Cross this and walk until it drops back under "
+                     f"{athlete.hr_easy_min}. Not a failure — it is the plan working."),
+        })
+        out.append({
             "label": "Cadence",
             "value": f"{max(athlete.run_cadence_threshold + 25, 165)}+ steps/min",
-            "note": "Quick, light steps. Slow down by shortening your stride, never by "
-                    "slowing your legs.",
-        },
-    ]
+            "note": ("Quick, light steps. Slow down by shortening your stride, never by "
+                     "slowing your legs."),
+        })
+    else:
+        out.append({
+            "label": "Effort",
+            "value": "Conversational",
+            "note": ("If you find yourself pushing, ease off. A walk day exists to let "
+                     "the last session land, not to add more."),
+        })
 
-    if metrics is not None and metrics.get("last_avg_hr"):
+    if metrics is not None and metrics.get("last_avg_hr") and not walking:
         out.append({
             "label": "Last session average",
             "value": f"{metrics['last_avg_hr']} bpm",
