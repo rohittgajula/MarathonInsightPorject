@@ -31,30 +31,100 @@ are wrong.
 Resources → Memory. Not 6 — macOS needs 3–4 GB for itself and you will start
 swapping. On a 16 GB machine, 8 GB is comfortable.
 
-At 5 GB, budget roughly:
+### A lighter runtime is worth more than a bigger allocation
+
+Docker Desktop **reserves** its allocation from macOS whether or not it is being
+used, and adds ~260 MB of host-side processes on top of the VM. On an 8 GB
+machine that is the wrong shape.
+
+**OrbStack** allocates dynamically — it takes what it needs and gives it back
+when idle — and is noticeably faster on Apple Silicon. Free for personal use,
+drop-in `docker` CLI compatibility, works with kind.
+
+```bash
+brew install orbstack
+```
+
+**Colima** is the fully open-source alternative. Fixed allocation like Docker
+Desktop, but without the app layer:
+
+```bash
+brew install colima
+colima start --cpu 4 --memory 5
+```
+
+Either is a better fit than Docker Desktop on 8 GB. Everything else in this
+course is unchanged — kind, kubectl and helm neither know nor care which is
+running.
+
+### Measured budget
+
+These are measured on this project's images, not estimates:
 
 ```
 kind node system pods (control plane, CoreDNS, CNI)   ~800 MB
 postgres                                              ~250 MB
 redis                                                  ~50 MB
-backend ×1                                            ~300 MB
-worker ×1                                             ~400 MB
-beat                                                  ~150 MB
-frontend ×1 (nginx)                                    ~20 MB
+backend ×1  (gunicorn, 2 workers)                     ~180 MB
+worker ×1   (celery --concurrency=2)                  ~124 MB   ← see below
+beat                                                   ~85 MB
+frontend ×1 (nginx, static files)                      ~20 MB
 ingress-nginx                                         ~150 MB
 cert-manager (3 pods)                                 ~150 MB
 metrics-server                                         ~50 MB
 KEDA                                                  ~150 MB
-                                              total  ~2.5 GB
+                                              total  ~2.0 GB
 ```
 
-Comfortable. But three rules follow from it:
+A fully-loaded Django process in this project measures **62 MB** — `django.setup()`
+plus every task module. The LLM SDKs add nothing at import time because
+`ai_extract` constructs and caches its clients lazily in `_CLIENTS`, which turns
+out to be a memory win as well as a correctness one.
 
-1. **Run `replicas: 1` locally**, not 2. Your dev overlay exists for exactly
-   this. You lose the ability to watch a zero-downtime rolling update happen —
-   do that on the VPS, or temporarily scale to 2 for one experiment.
+### Celery concurrency is the biggest single lever
+
+`docker-compose.yml` runs `celery -A config worker -l info` with **no
+`--concurrency` flag**, so Celery forks one prefork child per CPU. On an 8-core
+M1 that is 8 children. Measured:
+
+| `--concurrency` | Worker RSS |
+|---|---|
+| 8 (the default here) | **369 MB** |
+| 2 | **124 MB** |
+| 1 | **86 MB** |
+
+245 MB for one flag, on an app with one user whose real bottlenecks are Garmin
+and LLM rate limits rather than parallelism (see `celery.py`'s own comments).
+
+Set it in compose and in the Kubernetes manifest:
+
+```
+celery -A config worker -l info --concurrency=2
+```
+
+This matters on the VPS too — a 3-vCPU box would otherwise fork 3, and
+`05-autoscaling/02` counts Celery concurrency directly into the Postgres
+connection ceiling.
+
+Three rules follow from the budget:
+
+1. **Run `replicas: 1` locally**, not 2, and gunicorn with 2 workers rather
+   than 3. Your dev overlay exists for exactly this. You lose the ability to
+   watch a zero-downtime rolling update happen — do that on the VPS, or scale
+   to 2 for one experiment and back down.
 2. **Don't install the Prometheus stack locally.** kube-prometheus-stack wants
    ~800 MB on its own and will push you over. Save `08-operations` for the VPS.
+
+   More generally, **install each add-on at the lab that needs it**, not up
+   front:
+
+   | Labs | Installed | Total |
+   |---|---|---|
+   | 1–6 | kind only | ~1.5 GB |
+   | 7 | + ingress-nginx, cert-manager | ~1.8 GB |
+   | 8 | + metrics-server, KEDA | ~2.0 GB |
+
+   `helm uninstall keda` after Lab 8 is fine; you reinstall it on the VPS.
 3. **Stop `docker compose` before starting kind.** Both run on the same Docker
    daemon and compete for the same memory:
    ```bash
