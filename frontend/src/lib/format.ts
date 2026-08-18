@@ -26,3 +26,29 @@ export const dateStr = (iso: string): string =>
   new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
     weekday: "short", day: "numeric", month: "short", year: "numeric",
   });
+
+/** "3 minutes ago", "2 hours ago", "yesterday" — picks the unit that reads naturally.
+ *  Formatting everything in minutes gave "synced 76 minutes ago", which is accurate
+ *  and useless: nobody counts in 76s. */
+export function relativeTime(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "";
+
+  const seconds = Math.round((Date.now() - then) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+  if (seconds < 45) return "just now";
+  if (seconds < 3600) return rtf.format(-Math.round(seconds / 60), "minute");
+  if (seconds < 86_400) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.round((seconds % 3600) / 60);
+    // Under three hours the spare minutes still matter for "is this data fresh?";
+    // beyond that the hour alone is enough.
+    return hours < 3 && minutes > 0
+      ? `${hours}h ${minutes}m ago`
+      : rtf.format(-hours, "hour");
+  }
+  if (seconds < 2_592_000) return rtf.format(-Math.round(seconds / 86_400), "day");
+  return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}

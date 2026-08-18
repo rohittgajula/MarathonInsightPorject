@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { api, ApiError } from "../api/client";
+import { relativeTime } from "../lib/format";
 import { invalidateTrainingData } from "../lib/queryKeys";
 import type { GarminStatus, SyncResult } from "../lib/types";
 
@@ -32,12 +33,7 @@ export function GarminButton() {
   });
 
   const connected = status.data?.connected === true;
-  const lastSync = status.data?.last_sync
-    ? new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
-        -Math.round((Date.now() - new Date(status.data.last_sync).getTime()) / 60000),
-        "minute",
-      )
-    : null;
+  const lastSync = relativeTime(status.data?.last_sync);
   const bulb = status.isLoading ? "pending" : connected ? "on" : "off";
   const label = status.isLoading ? "Checking Garmin…"
     : connected ? `Garmin connected${status.data?.name ? ` as ${status.data.name}` : ""}`
