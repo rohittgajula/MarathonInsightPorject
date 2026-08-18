@@ -5,16 +5,63 @@ Your laptop cluster. Everything through section 08 runs here, free.
 ## Install
 
 ```bash
-brew install kind kubectl helm kustomize
-brew install derailed/k9s/k9s     # optional, excellent
+brew install kind helm
+brew install derailed/k9s/k9s     # optional, and excellent
+```
+
+`kubectl` ships with Docker Desktop, and **modern kubectl has kustomize built
+in** — `kubectl apply -k` and `kubectl kustomize` work with no extra install.
+You only need the standalone `kustomize` binary later, for `kustomize edit set
+image` in CI:
+
+```bash
+brew install kustomize      # not needed until 07-cicd
 ```
 
 Docker Desktop must be running — kind's "nodes" are Docker containers.
 
-Give Docker Desktop **at least 6 GB of RAM** in its settings. The default 2 GB
-will not run six workloads plus an ingress controller plus Postgres, and the
-failure mode is Pods being `Evicted` seemingly at random, which is a miserable
-thing to debug.
+### Memory — read this before anything else
+
+Docker Desktop's memory allocation is the thing that decides whether this is
+pleasant or miserable. Too little and Pods get `Evicted` seemingly at random,
+which is a genuinely awful thing to debug because it looks like your manifests
+are wrong.
+
+**On an 8 GB Mac (this machine): set Docker Desktop to 5 GB.** Settings →
+Resources → Memory. Not 6 — macOS needs 3–4 GB for itself and you will start
+swapping. On a 16 GB machine, 8 GB is comfortable.
+
+At 5 GB, budget roughly:
+
+```
+kind node system pods (control plane, CoreDNS, CNI)   ~800 MB
+postgres                                              ~250 MB
+redis                                                  ~50 MB
+backend ×1                                            ~300 MB
+worker ×1                                             ~400 MB
+beat                                                  ~150 MB
+frontend ×1 (nginx)                                    ~20 MB
+ingress-nginx                                         ~150 MB
+cert-manager (3 pods)                                 ~150 MB
+metrics-server                                         ~50 MB
+KEDA                                                  ~150 MB
+                                              total  ~2.5 GB
+```
+
+Comfortable. But three rules follow from it:
+
+1. **Run `replicas: 1` locally**, not 2. Your dev overlay exists for exactly
+   this. You lose the ability to watch a zero-downtime rolling update happen —
+   do that on the VPS, or temporarily scale to 2 for one experiment.
+2. **Don't install the Prometheus stack locally.** kube-prometheus-stack wants
+   ~800 MB on its own and will push you over. Save `08-operations` for the VPS.
+3. **Stop `docker compose` before starting kind.** Both run on the same Docker
+   daemon and compete for the same memory:
+   ```bash
+   docker compose down
+   ```
+   You cannot run the compose stack and the kind cluster at the same time on
+   8 GB. Pick one.
 
 ## The cluster config
 
@@ -195,7 +242,8 @@ forgot to write down.
 
 | Symptom | Cause |
 |---|---|
-| Pods `Pending`, `insufficient memory` | Docker Desktop RAM too low |
+| Pods `Pending`, `insufficient memory` | Docker Desktop RAM too low, or compose still running |
+| Pods `Evicted` at random | Same. Raise Docker's memory, drop to 1 replica. |
 | ingress-nginx `Pending` | Missing `ingress-ready=true` label |
 | `https://training.local` refuses | Missing `extraPortMappings` |
 | `kubectl top` → "Metrics API not available" | metrics-server missing or lacks `--kubelet-insecure-tls` |
@@ -205,7 +253,7 @@ forgot to write down.
 
 ## Cost
 
-Free. Uses maybe 4 GB of RAM while running.
+Free. Uses ~2.5 GB of RAM with everything running at 1 replica.
 
 Stop it when you're not using it:
 ```bash
