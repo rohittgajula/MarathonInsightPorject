@@ -12,6 +12,12 @@ garminconnect==0.3.10
 curl-cffi==0.16.0
 gunicorn==23.0.0
 python-dotenv==1.0.1
+# Read the free-text daily log. Both optional at runtime: with neither key set the
+# keyword extractor carries on unchanged and the UI says which parser ran.
+# Gemini has a free tier; Claude is the more accurate reader on casual, mixed-
+# language text. Whichever key is present wins; LOG_AI_PROVIDER forces one.
+anthropic==0.122.0
+google-genai==2.18.1
 
 # dev
 pytest==8.3.4

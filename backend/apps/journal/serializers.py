@@ -13,18 +13,41 @@ class DailyLogSerializer(serializers.ModelSerializer):
         fields = [
             "id", "log_date", "text",
             "alcohol_units", "sleep_hours", "sleep_quality", "felt",
-            "pain_area", "illness", "stressed", "travel",
+            "pain_area", "pain_severity", "pain_when",
+            "illness", "stressed", "travel",
+            "applies_to_date", "applies_to_reason",
+            "ai_status", "ai_model", "summary", "advice",
             "detected", "created_at", "updated_at", "logged_at",
         ]
         # Structured fields are derived from `text` on save, never posted directly.
         read_only_fields = [
             "id", "alcohol_units", "sleep_hours", "sleep_quality", "felt",
-            "pain_area", "illness", "stressed", "travel", "detected",
+            "pain_area", "pain_severity", "pain_when",
+            "illness", "stressed", "travel",
+            "applies_to_date", "applies_to_reason",
+            "ai_status", "ai_model", "summary", "advice", "detected",
             "created_at", "updated_at", "logged_at",
         ]
 
     detected = serializers.SerializerMethodField()
     logged_at = serializers.SerializerMethodField()
+    summary = serializers.SerializerMethodField()
+    advice = serializers.SerializerMethodField()
+
+    def get_summary(self, obj) -> str:
+        """The model's one-line restatement, so the athlete can see it read them right."""
+        return (obj.ai_analysis or {}).get("summary", "")
+
+    def get_advice(self, obj) -> dict:
+        """Hydration notes, exercise prescriptions and flags derived from the entry.
+
+        Computed on read rather than stored: the rules change more often than the
+        entries do, and re-deriving costs nothing while a stored copy would go stale
+        the first time a threshold moved.
+        """
+        from .advice import build
+
+        return build(obj.ai_analysis or {})
 
     def get_logged_at(self, obj) -> str:
         """When this entry was last written, in the athlete's own clock.
@@ -60,7 +83,12 @@ class DailyLogSerializer(serializers.ModelSerializer):
         if obj.alcohol_units is not None:
             found.append(f"{obj.alcohol_units:g} units alcohol")
         if obj.pain_area:
-            found.append(f"{obj.pain_area.replace('_', ' ')} pain")
+            label = f"{obj.pain_area.replace('_', ' ')} pain"
+            if obj.pain_when == "running":
+                label += " while running"
+            if obj.pain_severity:
+                label += f" ({obj.pain_severity}/5)"
+            found.append(label)
         if obj.illness:
             found.append("unwell")
         if obj.stressed:

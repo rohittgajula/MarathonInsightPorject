@@ -61,16 +61,37 @@ class PlannedSession:
     phase: str
     note: str
     run_minutes: float = 0.0
+    # Walking is prescribed work on this plan, not a gap in it, so it gets a target
+    # like anything else. Without it the week table could only ever say what a
+    # session was *not*, and a walk day showed a blank row.
+    walk_minutes: float = 0.0
     distance_km: float = 0.0
     # Concrete targets so the schedule answers "what am I aiming at" per day.
     target_pace: str = ""
     target_hr: str = ""
+    # The numbers behind those labels. Carried alongside rather than parsed back out
+    # of the strings, because "optional walk, easy" has no numbers in it and a review
+    # that guessed would be inventing a target the plan never set. Zero means
+    # "nothing prescribed", which is a different statement from "prescribed as zero".
+    target_pace_min_s: int = 0
+    target_pace_max_s: int = 0
+    target_hr_min: int = 0
+    target_hr_max: int = 0
+    # The shape of an interval session, not just its total. A day review needs to say
+    # "the plan asked for 1 min blocks and you ran 4:51" — which the summed
+    # run_minutes cannot express.
+    reps: int = 0
+    rep_run_minutes: float = 0.0
     total_minutes: float = 0.0
     focus: str = ""
     # Set when a daily log moves the session off the template.
     adjusted: bool = False
     adjust_reason: str = ""
     adjust_severity: str = ""
+    # "If you do it, here is the target" — as opposed to work the week depends on.
+    # A rest day's walk has real numbers behind it, but missing it is not a shortfall,
+    # and the two must stay distinguishable downstream.
+    optional: bool = False
     # True for dates earlier than the plan's own start. The table is clamped so those
     # dates still return something sensible, but they are not week 1 — the plan simply
     # had not begun, and judging them against it is meaningless.
@@ -113,11 +134,35 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
     phase = _phase_for(key)
     weekday = on.weekday()
 
+    # Walking targets, shared by the prescribed walk day and the optional walk on a
+    # rest day. 11.2 min/km is the pace the walk session's own 2.5 km / 28 min implies.
+    walk_pace_label = "9:00–11:00/km"
+    walk_pace_min, walk_pace_max = 540, 660
+    walk_min_per_km = 11.2
+
+    pace_min = athlete.easy_pace_min if athlete else 600
+    pace_max = athlete.easy_pace_max if athlete else 645
+    hr_min = athlete.hr_easy_min if athlete else 130
+    hr_max = athlete.hr_easy_max if athlete else 145
+
     base = dict(
         date=on, plan_week=plan_week, weeks_out=weeks_out, phase=phase, note=note,
         target_pace=easy_pace_label, target_hr=hr_label,
+        target_pace_min_s=pace_min, target_pace_max_s=pace_max,
+        target_hr_min=hr_min, target_hr_max=hr_max,
         before_plan=weeks_out > 16,
     )
+
+    # Names of the target fields, so the branches that prescribe something different
+    # (or nothing) can drop the whole set rather than half of it.
+    PACE_KEYS = ("target_pace", "target_pace_min_s", "target_pace_max_s")
+    HR_KEYS = ("target_hr", "target_hr_min", "target_hr_max")
+
+    # A long run and a jog are targeted by distance, but at this stage they are still
+    # run/walk — so the running time inside them is real and was simply never
+    # recorded. It follows the same run:walk ratio the week's intervals prescribe,
+    # which is the only ratio the plan actually states.
+    run_share = run_m / (run_m + walk_m) if (run_m + walk_m) else 1.0
 
     if on == race_date:
         return PlannedSession(
@@ -128,12 +173,15 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
                 "than running until you have to stop. Walk every water station."
             ),
             distance_km=long_km, focus="Finish", total_minutes=long_km * 11,
+            run_minutes=round(long_km * 11 * run_share, 1),
+            walk_minutes=round(long_km * 11 * (1 - run_share), 1),
             **base,
         )
 
     day_type = athlete.day_type(weekday) if athlete else DEFAULT_WEEK[weekday]
 
     if day_type == "long":
+        total = round(long_km * 11)
         return PlannedSession(
             kind="long", title=f"Long run — {long_km:g} km",
             detail=(
@@ -141,13 +189,16 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
                 "actually builds the distance; treat the midweek work as support for it."
             ),
             distance_km=long_km, focus="Build distance",
-            total_minutes=round(long_km * 11), **base,
+            run_minutes=round(total * run_share, 1),
+            walk_minutes=round(total * (1 - run_share), 1),
+            total_minutes=total, **base,
         )
 
     if day_type == "jog":
         # An easy continuous-ish run, deliberately shorter than the long run so the
         # week still has one clear distance session.
         jog_km = round(long_km * 0.6, 1)
+        total = round(jog_km * 11)
         return PlannedSession(
             kind="jog", title=f"Easy jog — {jog_km:g} km",
             detail=(
@@ -155,6 +206,8 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
                 "volume at low cost — it should feel easier than your interval days."
             ),
             distance_km=jog_km, focus="Easy volume",
+            run_minutes=round(total * run_share, 1),
+            walk_minutes=round(total * (1 - run_share), 1),
             total_minutes=round(jog_km * 11), **base,
         )
 
@@ -166,14 +219,17 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
                 "impact load, which is exactly what a body adapting to running needs. "
                 "Quick enough that talking takes a little effort."
             ),
-            focus="Active recovery", total_minutes=28,
+            focus="Active recovery", total_minutes=28, walk_minutes=28,
             # A walk has real targets; leaving them blank made the row read as
             # "nothing prescribed" when this is prescribed work.
             distance_km=2.5,
-            **{k: v for k, v in base.items() if k not in ("target_pace", "target_hr")},
-            target_pace="9:00–11:00/km",
+            **{k: v for k, v in base.items() if k not in PACE_KEYS + HR_KEYS},
+            target_pace=walk_pace_label,
+            target_pace_min_s=walk_pace_min, target_pace_max_s=walk_pace_max,
             target_hr=f"{max(athlete.hr_easy_min - 20, 90)}–{athlete.hr_easy_min} bpm"
                       if athlete else "110–130 bpm",
+            target_hr_min=max(hr_min - 20, 90) if athlete else 110,
+            target_hr_max=hr_min if athlete else 130,
         )
 
     if day_type == "cross":
@@ -184,7 +240,7 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
                 "repetitive impact that causes most beginner running injuries."
             ),
             focus="Aerobic, no impact", total_minutes=30,
-            **{k: v for k, v in base.items() if k not in ("target_pace",)},
+            **{k: v for k, v in base.items() if k not in PACE_KEYS},
             target_pace="",
         )
 
@@ -200,18 +256,33 @@ def session_for(race_date: dt.date, on: dt.date, athlete=None) -> PlannedSession
             )
         return PlannedSession(
             kind="intervals", title=title, detail=detail,
-            run_minutes=reps * run_m, focus="Time on feet",
+            run_minutes=reps * run_m, reps=reps, rep_run_minutes=run_m,
+            # The recovery halves plus the 5 min walk each side. Every minute of an
+            # interval session is now accounted for as either run or walk.
+            walk_minutes=reps * walk_m + 10,
+            focus="Time on feet",
             total_minutes=round(reps * (run_m + walk_m) + 10), **base,
         )
 
+    # A rest day prescribes no running, but its own text has always said "if you do
+    # walk, 20–30 minutes easy is plenty" — which is a target the row was discarding.
+    # Showing "optional walk, easy" and four dashes told the athlete to walk without
+    # saying how far, how fast, or for how long.
+    rest_walk_minutes = 25.0
     return PlannedSession(
         kind="rest", title="Rest or easy walk",
         detail=(
             "No running today. A walk, cycle or swim is fine — adaptation happens on "
             "the days you don't run. If you do walk, 20–30 minutes easy is plenty."
         ),
-        focus="Recover", target_pace="optional walk, easy", target_hr="",
-        **{k: v for k, v in base.items() if k not in ("target_pace", "target_hr")},
+        focus="Recover", optional=True,
+        walk_minutes=rest_walk_minutes, total_minutes=rest_walk_minutes,
+        distance_km=round(rest_walk_minutes / walk_min_per_km, 1),
+        **{k: v for k, v in base.items() if k not in PACE_KEYS + HR_KEYS},
+        target_pace=walk_pace_label,
+        target_pace_min_s=walk_pace_min, target_pace_max_s=walk_pace_max,
+        target_hr=f"{max(hr_min - 20, 90)}–{hr_min} bpm",
+        target_hr_min=max(hr_min - 20, 90), target_hr_max=hr_min,
     )
 
 

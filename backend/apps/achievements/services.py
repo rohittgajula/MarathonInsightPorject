@@ -9,6 +9,7 @@ produced had it been running all along.
 from __future__ import annotations
 
 import logging
+from typing import Optional
 
 from .catalog import CATALOG, build_context
 from .models import EarnedAchievement
@@ -38,6 +39,32 @@ def evaluate(athlete) -> dict:
         newly.append(definition.key)
 
     return {"newly_earned": newly, "total": EarnedAchievement.objects.filter(athlete=athlete).count()}
+
+
+def next_up(athlete, data: dict | None = None) -> Optional[dict]:
+    """The unearned achievement closest to being earned.
+
+    One line on the dashboard, not a leaderboard. The point is a single concrete
+    thing within reach — "your longest unbroken run is 4:51, ten minutes earns this"
+    is motivating in a way a wall of locked badges is not, and it is a number the
+    system already holds rather than encouragement invented for the occasion.
+
+    Closest is measured by the progress `board` already computes, so this can never
+    disagree with the achievements page.
+    """
+    data = data or board(athlete)
+    locked = [
+        item
+        for group in data.get("groups", [])
+        for item in group["items"]
+        if not item["earned"]
+    ]
+    if not locked:
+        return None
+
+    # Ties broken by the smaller target: with two things equally close in percentage
+    # terms, the smaller one lands sooner in real training.
+    return max(locked, key=lambda i: (i["progress"], -(i["target"] or 0)))
 
 
 def board(athlete) -> dict:

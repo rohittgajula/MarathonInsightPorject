@@ -115,13 +115,98 @@ export interface DailyLog {
   sleep_quality: string;
   felt: string;
   pain_area: string;
+  pain_severity: number | null;
+  pain_when: string;
   illness: boolean;
   stressed: boolean;
   travel: boolean;
+  /* The day the entry is *about*, when that differs from the day it was typed. */
+  applies_to_date: string | null;
+  applies_to_reason: string;
+  ai_status:
+    | "pending" | "done" | "failed"
+    | "unavailable" | "rate_limited" | "bad_key";
+  ai_model: string;
+  summary: string;
+  advice: LogAdvice;
   detected: string[];
   logged_at: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface AdviceNote {
+  tone: Tone;
+  key: string;
+  headline: string;
+  detail: string;
+}
+
+export interface ExerciseItem {
+  key: string;
+  name: string;
+  kind: string;
+  areas: string[];
+  dose: string;
+  why: string;
+  how: string;
+  muscles: string[];
+  acute: boolean;
+  caution: string;
+}
+
+export interface Prescription {
+  area: string;
+  severity: number;
+  when: string;
+  running_advice: string;
+  red_flags: string;
+  acute_only: boolean;
+  exercises: ExerciseItem[];
+  quote?: string;
+  side?: string;
+}
+
+export interface LogAdvice {
+  hydration: AdviceNote[];
+  pain: Prescription[];
+  flags: AdviceNote[];
+}
+
+export interface ExerciseLibrary {
+  kind_labels: Record<string, string>;
+  areas: string[];
+  maintenance: ExerciseItem[];
+  exercises: ExerciseItem[];
+  red_flags: string;
+  prescriptions: Prescription[];
+  from_log: { date: string; text: string } | null;
+}
+
+export interface FuelItem {
+  key: string;
+  label: string;
+  amount: string;
+  detail: string;
+}
+
+export interface FuelingPlan {
+  date: string;
+  is_today: boolean;
+  session_title: string;
+  minutes: number;
+  is_run: boolean;
+  hot: boolean;
+  weight_kg: number;
+  weight_assumed: boolean;
+  feels_like_c: number | null;
+  humidity_pct: number | null;
+  sweat_rate_ml_per_h: number;
+  expected_loss_ml: number;
+  before: FuelItem[];
+  during: FuelItem[];
+  after: FuelItem[];
+  notes: string[];
 }
 
 export interface SessionStep { label: string; detail: string; duration: string; }
@@ -134,7 +219,7 @@ export interface TechniqueGuide {
 
 export interface PlannedSession {
   date: string;
-  kind: "intervals" | "long" | "rest" | "race";
+  kind: "intervals" | "long" | "jog" | "walk" | "cross" | "rest" | "race";
   title: string;
   detail: string;
   plan_week: number;
@@ -142,6 +227,8 @@ export interface PlannedSession {
   phase: string;
   note: string;
   run_minutes: number;
+  /* Prescribed walking. Walking is work on this plan, not a gap in it. */
+  walk_minutes?: number;
   distance_km: number;
   target_pace: string;
   target_hr: string;
@@ -150,6 +237,60 @@ export interface PlannedSession {
   adjusted: boolean;
   adjust_reason: string;
   adjust_severity: string;
+  /* The shape of an interval session, so a review can say "1 min blocks were asked
+     for" rather than only reporting their sum. Absent on the dashboard's payload. */
+  reps?: number;
+  rep_run_minutes?: number;
+  /* Targets that apply if you do it, rather than work the week depends on. */
+  optional?: boolean;
+  before_plan?: boolean;
+}
+
+export type Tone = "good" | "warn" | "neutral";
+
+/* One planned-against-actual line in the day popup. Every string is formatted
+   server-side, next to the rule that decided its tone. */
+export interface ReviewRow {
+  key: string;
+  label: string;
+  planned: string;
+  actual: string;
+  delta: string;
+  tone: Tone;
+  note: string;
+}
+
+export interface ReviewSuggestion {
+  tone: Tone;
+  headline: string;
+  detail: string;
+}
+
+export type DayState =
+  | "done" | "partial" | "missed" | "moved"
+  | "rest" | "extra" | "upcoming" | "before_plan";
+
+export interface DayReviewResponse {
+  date: string;
+  is_past: boolean;
+  is_today: boolean;
+  state: DayState;
+  summary: string;
+  planned: PlannedSession | null;
+  activities: {
+    id: number; sport: string; distance_km: number; duration_s: number;
+    started_at: string; place_name: string;
+    temp_c: number | null; feels_like_c: number | null;
+    run_blocks: number | null; longest_run_s: number | null;
+    avg_run_pace_s: number | null;
+  }[];
+  rows: ReviewRow[];
+  suggestions: ReviewSuggestion[];
+  wellness: {
+    sleep_window: string; sleep_hours: number | null; sleep_score: number | null;
+    resting_hr: number | null; training_readiness: number | null;
+  } | null;
+  log: { text: string; felt: string } | null;
 }
 
 export interface TrendPoint {
@@ -166,6 +307,8 @@ export interface Dashboard {
   tomorrow: PlannedSession | null;
   week: PlannedSession[];
   insights: { tone: string; headline: string; detail: string }[];
+  /* Closest unearned achievement, or null once everything is earned. */
+  next_achievement: AchievementItem | null;
   trend: TrendPoint[];
   wellness: WellnessPoint[];
   session_steps: SessionStep[];

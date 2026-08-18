@@ -700,3 +700,362 @@ td.num, td.mono { white-space: nowrap; }
 
 /* Column labels get a touch less tracking so eight of them fit before scrolling. */
 table th { letter-spacing: .07em; }
+
+/* ---- the week table, and stepping between weeks ----
+
+   The lurch when navigating was never about missing animation; it was three layout
+   changes firing at once. The columns were sized from their contents, so a week
+   containing a long eased-session title laid out differently from a week of short
+   ones. The tbody emptied while the next week loaded, collapsing the table to its
+   min-width and springing back. And the "This week" button appearing pushed the
+   arrows sideways. Fixing the layout is what makes it smooth; the fade below is
+   only the finish on top. */
+
+/* Fixed layout is what stops the columns resizing themselves around each week's
+   contents. min-width is the sum of the measured column widths plus room for the
+   session titles; below it the .scroll wrapper takes over, which is its job. */
+.week-table { table-layout: fixed; min-width: 1024px; }
+
+/* Held in the layout rather than removed from it, so the arrows never move. */
+.held { visibility: hidden; pointer-events: none; }
+
+/* The current day is marked by a tinted ground and an accent edge, so the row is
+   still identifiable where the tint is too subtle to read as a state. */
+tbody tr.is-today { background: var(--accent-soft); }
+tbody tr.is-today td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+tr.clickable { cursor: pointer; }
+tr.clickable:hover .day-open { color: var(--accent); }
+
+/* The day cell is a real button: the row's click target is a convenience for the
+   mouse, and this is what makes it reachable by keyboard. */
+.day-open {
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left;
+  transition: color .2s var(--ease);
+}
+.day-open:hover { color: var(--accent); }
+
+/* Rows arrive in sequence rather than all at once — enough to read as a change of
+   week, small enough not to be a performance. */
+.week-row { animation: row-in .32s var(--ease) both; animation-delay: calc(var(--i, 0) * 26ms); }
+@keyframes row-in { from { opacity: 0; transform: translateY(5px); } }
+
+/* Refetching dims the table instead of inserting a "Loading…" line above it —
+   inserted text pushes the table down and back, which is the jump itself. */
+.week-table[data-loading] tbody { opacity: .55; }
+.week-table tbody { transition: opacity .2s var(--ease); }
+
+.skeleton {
+  display: block; height: 15px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--surface-2), var(--rule), var(--surface-2));
+  background-size: 200% 100%; animation: shimmer 1.3s linear infinite;
+}
+@keyframes shimmer { to { background-position: -200% 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .week-row { animation: none; }
+  .skeleton { animation: none; }
+}
+
+/* ---- day review dialog ----
+
+   Native <dialog> + showModal(), so the focus trap, Esc-to-close, the top layer and
+   the inert background come from the platform rather than from an approximation. */
+
+.modal {
+  border: 0; padding: 0; background: transparent;
+  max-width: min(760px, calc(100vw - 32px));
+  width: 100%;
+  max-height: calc(100dvh - 48px);
+  margin: auto;
+  overflow: visible;
+  color: var(--ink);
+}
+.modal::backdrop {
+  background: rgba(10, 12, 18, .55);
+  -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+}
+
+.modal-panel {
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  box-shadow: var(--shadow-lift);
+  padding: 20px 22px 22px;
+  max-height: calc(100dvh - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Sticky so the close control stays reachable partway down a long review. The
+   negative margins pull it out to the panel's edges and the padding puts the inset
+   back, so the band it paints spans the full width — inset by the panel's padding it
+   left two gutters for the content to scroll up through. */
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 14px;
+  /* Sticky offsets are measured from the scroll container's padding edge, so top:0
+     parks the header 20px down and leaves a strip of scrolling content visible above
+     it. The offset cancels the panel's own top padding. */
+  position: sticky; top: -20px; z-index: 1;
+  margin: -20px -22px 16px; padding: 18px 22px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rule-soft);
+}
+.modal-close { flex: 0 0 auto; padding: 5px 11px; line-height: 1; }
+
+.modal[open] { animation: modal-in .26s var(--ease); }
+.modal[open]::backdrop { animation: backdrop-in .26s var(--ease); }
+@keyframes modal-in { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+@keyframes backdrop-in { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .modal[open], .modal[open]::backdrop { animation: none; }
+}
+
+/* The review table is read down the "actual" column, so that column carries the
+   verdict — and carries it in weight as well as hue, never in hue alone. */
+.review-table { table-layout: auto; min-width: 460px; }
+.review-table td { vertical-align: top; }
+/* The metric column carries a label and often a caveat under it, so it is given the
+   larger share outright — left to size itself it took a third of what it needed and
+   wrapped every note onto three lines. Auto layout keeps the remaining columns able
+   to hold their nowrap values. */
+.review-table th:first-child, .review-table td:first-child { width: 36%; }
+/* The difference column is a sentence with numbers in it, not a single value, so it
+   wraps. Left nowrap it claimed a third of the table and squeezed the metric column
+   until every caveat under a label ran to three lines. Breaking stays at spaces
+   only — the keep-all rule further up still holds "1:33/km" together. */
+.review-table td:last-child { white-space: normal; }
+.review-table .val-good { color: var(--good); font-weight: 650; }
+.review-table .val-warn { color: var(--warn); font-weight: 650; }
+.review-table .val-neutral { color: var(--ink); }
+.row-note { display: block; margin-top: 3px; line-height: 1.45; }
+
+@media (max-width: 560px) {
+  .modal-panel { padding: 16px 15px 18px; }
+  .modal-head { top: -16px; margin: -16px -15px 14px; padding: 14px 15px 11px; }
+}
+
+/* ---- fuel and fluid ---- */
+
+.fuel-grid {
+  display: grid; gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+}
+.fuel-col {
+  background: var(--surface-2); border-radius: 10px; padding: 13px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.fuel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.fuel-head h3 { margin: 0; font-size: 14.5px; }
+
+.fuel-item { padding-top: 10px; border-top: 1px solid var(--rule-soft); }
+.fuel-col .fuel-item:first-of-type { padding-top: 0; border-top: 0; }
+.fuel-label { font-size: 13.5px; font-weight: 650; }
+/* The number is what the athlete came for, so it reads as the headline of its row
+   rather than as a footnote to the label. */
+.fuel-amount { font-size: 13.5px; font-weight: 650; color: var(--accent); text-align: right; }
+.fuel-item p { font-size: 12.5px; line-height: 1.55; margin-top: 5px; }
+
+/* ---- prescriptions and exercises ---- */
+
+.prescription {
+  border: 1px solid var(--rule); border-radius: 11px; padding: 15px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.prescription h3 { text-transform: capitalize; }
+
+/* Deliberately loud, and deliberately above the exercise list. An app handing out
+   rehab work owes the "this needs a person, not a list" line more prominence than
+   the list itself. */
+.red-flags {
+  border-left: 3px solid var(--warn); background: var(--warn-soft);
+  border-radius: 0 8px 8px 0; padding: 10px 13px;
+}
+.red-flags .eyebrow { color: var(--warn); }
+.red-flags p { font-size: 12.5px; line-height: 1.55; color: var(--ink-soft); margin-top: 4px; }
+
+.exercise-row { padding: 11px 0; border-bottom: 1px solid var(--rule-soft); }
+.exercise-row:last-child { border-bottom: 0; }
+.exercise-name { font-size: 13.5px; font-weight: 650; }
+.exercise-row p { font-size: 12.5px; line-height: 1.55; margin-top: 4px; }
+.caution { color: var(--warn); font-size: 12.5px; margin-top: 4px; }
+
+.ex-list { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); }
+.ex-card {
+  background: var(--surface-2); border-radius: 10px; padding: 13px 14px;
+  border: 1px solid transparent; transition: border-color .24s var(--ease);
+}
+.ex-card:hover { border-color: var(--rule); }
+.ex-card h3 { font-size: 14px; }
+.ex-card p { font-size: 12.5px; line-height: 1.55; margin-top: 6px; }
+
+.area-pill { padding: 5px 11px; font-size: 12.5px; text-transform: capitalize; }
+.area-pill.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+
+/* ---- closest achievement, in the hero ----
+
+   Borrows the hero's own translucent-white palette rather than introducing a colour:
+   it is a footnote to the session, not a competing headline. */
+.next-ach {
+  display: block; text-decoration: none; color: inherit;
+  margin-top: 14px; padding: 11px 13px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .18);
+  transition: background .24s var(--ease), border-color .24s var(--ease);
+}
+.next-ach:hover {
+  background: rgba(255, 255, 255, .16);
+  border-color: rgba(255, 255, 255, .34);
+}
+.next-ach-name {
+  font-size: 12.5px; font-weight: 650; color: #fff;
+  letter-spacing: .01em;
+}
+.next-ach-value { font-size: 12.5px; color: rgba(255, 255, 255, .92); white-space: nowrap; }
+.next-ach-desc {
+  margin: 6px 0 0; font-size: 12px; color: rgba(255, 255, 255, .78);
+}
+.next-ach-bar {
+  height: 4px; border-radius: 2px; margin-top: 8px; overflow: hidden;
+  background: rgba(255, 255, 255, .20);
+}
+.next-ach-bar span {
+  display: block; height: 100%; border-radius: 2px;
+  background: rgba(255, 255, 255, .85);
+  transition: width .6s var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .next-ach, .next-ach-bar span { transition: none; }
+}
+
+/* ---- hero slide band ----
+
+   Fixed height so the hero never changes size as slides move, and so the session
+   title stays the largest thing on the page. Content aligns to the top rather than
+   centring: a two-line slide and a four-line slide should start in the same place. */
+.hero-slides {
+  position: relative;
+  margin-top: 14px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .10);
+  border: 1px solid rgba(255, 255, 255, .18);
+}
+.hero-viewport { overflow: hidden; }
+
+.hero-track {
+  display: flex;
+  transition: transform .42s var(--ease);
+  min-height: 78px;
+  align-items: flex-start;
+}
+.hero-slide { flex: 0 0 100%; min-width: 0; }
+
+.hero-slide-title {
+  margin: 0 0 4px; font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .1em;
+  color: rgba(255, 255, 255, .78);
+}
+.hero-slide-body {
+  margin: 0; font-size: 13px; line-height: 1.55;
+  color: rgba(255, 255, 255, .95);
+}
+
+/* The achievement inside a slide sheds its own panel — the band is the panel. */
+.next-ach.bare {
+  margin: 0; padding: 0; background: none; border: 0; border-radius: 0;
+}
+.next-ach.bare:hover { background: none; border: 0; }
+.next-ach.bare:hover .next-ach-name { text-decoration: underline; }
+
+.hero-dots { display: flex; gap: 6px; margin-top: 10px; }
+.hero-dot {
+  width: 18px; height: 4px; padding: 0; border: 0; border-radius: 2px;
+  background: rgba(255, 255, 255, .30);
+  transition: background .24s var(--ease), transform .24s var(--ease);
+}
+.hero-dot:hover { background: rgba(255, 255, 255, .55); }
+.hero-dot.on { background: rgba(255, 255, 255, .92); }
+.hero-dot:hover:not(:disabled) { transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-track { transition: none; }
+}
+
+/* Today's log as it stands, under the box that adds to it. Each note is one line,
+   so a day written in three sittings reads as three notes rather than a paragraph. */
+.log-today { display: flex; flex-direction: column; gap: 5px; }
+.log-today p {
+  margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--ink-soft);
+  padding-left: 11px; border-left: 2px solid var(--rule);
+}
+.log-today p:first-child { color: var(--ink); }
+
+/* ---- strength & rehab motions ----
+
+   Same rules as the warm-up keyframes: slow and eased, because these are controlled
+   movements and a fast loop teaches the wrong tempo. Several exercises share a
+   motion rather than getting a near-duplicate keyframe of their own. */
+
+/* Rise and lower — calf raises, and the toe-lift that mirrors them. */
+@keyframes toe-raise  { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(-26deg) } }
+@keyframes knee-wall  { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(11deg) } }
+@keyframes stepdown   { 0%,100% { transform: translateY(0) }  50% { transform: translateY(26px) } }
+@keyframes knee-ext   { 0%,100% { transform: rotate(16deg) }  50% { transform: rotate(0deg) } }
+@keyframes clam       { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(-24deg) } }
+@keyframes abduct     { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(-26deg) } }
+@keyframes hike       { 0%,100% { transform: translateY(6px) } 50% { transform: translateY(-6px) } }
+@keyframes catcow     { 0%,100% { transform: translateY(0) scaleY(1) } 50% { transform: translateY(-9px) scaleY(.82) } }
+@keyframes lunge      { 0%,100% { transform: translateX(0) }  50% { transform: translateX(7px) } }
+@keyframes hinge      { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(-46deg) } }
+@keyframes dome       { 0%,100% { transform: translateY(0) scaleY(1) } 50% { transform: translateY(-5px) scaleY(1.35) } }
+@keyframes scrunch    { 0%,100% { transform: translateX(0) }  50% { transform: translateX(-13px) } }
+@keyframes roll       { 0%,100% { transform: translateX(-24px) } 50% { transform: translateX(24px) } }
+@keyframes press      { 0%,100% { transform: translateX(0) }  50% { transform: translateX(-4px) } }
+@keyframes squeeze    { 0%,100% { transform: translateY(0) }  50% { transform: translateY(5px) } }
+@keyframes squeeze-b  { 0%,100% { transform: translateY(0) }  50% { transform: translateY(-5px) } }
+@keyframes hold       { 0%,100% { transform: translateY(0) }  50% { transform: translateY(-1.5px) } }
+@keyframes deadbug-a  { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(-34deg) } }
+@keyframes deadbug-b  { 0%,100% { transform: rotate(0deg) }   50% { transform: rotate(28deg) } }
+
+.anim-toe-raise { animation: toe-raise 2.6s ease-in-out infinite; }
+.anim-knee-wall { animation: knee-wall 2.8s ease-in-out infinite; }
+.anim-stepdown  { animation: stepdown 3.2s ease-in-out infinite; }
+.anim-knee-ext  { animation: knee-ext 2.4s ease-in-out infinite; }
+.anim-clam      { animation: clam 2.6s ease-in-out infinite; }
+.anim-abduct    { animation: abduct 2.8s ease-in-out infinite; }
+.anim-hike      { animation: hike 2.8s ease-in-out infinite; }
+.anim-catcow    { animation: catcow 3.4s ease-in-out infinite; }
+.anim-lunge     { animation: lunge 3s ease-in-out infinite; }
+.anim-hinge     { animation: hinge 3.4s ease-in-out infinite; }
+.anim-dome      { animation: dome 2.6s ease-in-out infinite; }
+.anim-scrunch   { animation: scrunch 2.2s ease-in-out infinite; }
+.anim-roll      { animation: roll 3.2s ease-in-out infinite; }
+.anim-press     { animation: press 2.4s ease-in-out infinite; }
+.anim-squeeze   { animation: squeeze 2.4s ease-in-out infinite; }
+.anim-squeeze-b { animation: squeeze-b 2.4s ease-in-out infinite; }
+/* A held position still breathes slightly — a completely static figure reads as a
+   broken animation rather than as an isometric. */
+.anim-hold      { animation: hold 3.6s ease-in-out infinite; }
+.anim-deadbug-a { animation: deadbug-a 3.2s ease-in-out infinite; }
+.anim-deadbug-b { animation: deadbug-b 3.2s ease-in-out infinite; }
+/* Cadence work is the one drill that should look quick. */
+.anim-cadence-a { animation: stride .62s ease-in-out infinite; }
+.anim-cadence-b { animation: stride .62s ease-in-out infinite reverse; }
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-toe-raise, .anim-knee-wall, .anim-stepdown, .anim-knee-ext, .anim-clam,
+  .anim-abduct, .anim-hike, .anim-catcow, .anim-lunge, .anim-hinge, .anim-dome,
+  .anim-scrunch, .anim-roll, .anim-press, .anim-squeeze, .anim-squeeze-b,
+  .anim-hold, .anim-deadbug-a, .anim-deadbug-b,
+  .anim-cadence-a, .anim-cadence-b { animation: none; }
+}
+
+/* In the library grid a card is ~280px, so the warm-up page's side-by-side layout
+   leaves the text in a column too narrow to read. Stack there instead: the motion
+   on top, at a size that still shows what is moving. */
+.ex-card .ex-row { flex-direction: column; align-items: stretch; gap: 10px; }
+.ex-card .ex-anim { max-width: 108px; margin: 0 auto; }

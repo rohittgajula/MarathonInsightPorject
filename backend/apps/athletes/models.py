@@ -28,6 +28,12 @@ class Athlete(models.Model):
     timezone = models.CharField(max_length=64, default="UTC")
 
     date_of_birth = models.DateField(null=True, blank=True)
+    # Sweat rate, fluid replacement and pre-run carbohydrate all scale with body
+    # mass. Optional: `fueling` falls back to a stated assumption and says so, which
+    # is better than refusing to answer.
+    weight_kg = models.FloatField(
+        null=True, blank=True, help_text="Used to scale hydration and fuelling figures."
+    )
     resting_hr = models.PositiveSmallIntegerField(null=True, blank=True)
     max_hr = models.PositiveSmallIntegerField(
         null=True, blank=True, help_text="Observed max, not a formula estimate."

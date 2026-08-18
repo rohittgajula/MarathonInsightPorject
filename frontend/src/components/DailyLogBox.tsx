@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { invalidateTrainingData } from "../lib/queryKeys";
 import type { DailyLog } from "../lib/types";
+import { LogAdviceBlock } from "./LogAdvice";
 
 interface Paged<T> { results: T[]; }
 
@@ -12,24 +13,31 @@ interface Paged<T> { results: T[]; }
 
 export function DailyLogBox({ today }: { today?: string }) {
   const [text, setText] = useState("");
-  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [justSaved, setJustSaved] = useState(false);
   const queryClient = useQueryClient();
 
   const logs = useQuery({
     queryKey: ["logs"],
     queryFn: () => api.get<Paged<DailyLog>>("/logs/"),
+    // Claude reads the entry in a background task, so the row arrives `pending` and
+    // fills in a few seconds later. Polling only while something is actually pending
+    // keeps this from becoming a permanent timer on the dashboard.
+    refetchInterval: (query) => {
+      const rows = query.state.data?.results ?? [];
+      // Only `pending` resolves in seconds. `rate_limited` is fixed by the
+      // scheduled sweep minutes later, so polling for it would spin pointlessly.
+      return rows.some((l) => l.ai_status === "pending") ? 2500 : false;
+    },
   });
 
   const save = useMutation({
     mutationFn: (body: { text: string }) =>
       api.post<DailyLog>("/logs/", { ...body, log_date: todayDate }),
-    onSuccess: (saved) => {
-      // Deliberately NOT cleared. Clearing emptied the box on a successful save and
-      // the prefill guard then refused to refill it, so a save that worked looked
-      // exactly like one that failed.
-      setText(saved.text);
-      setLoadedFor(todayDate);
+    onSuccess: () => {
+      // Cleared, because the box adds to the day rather than replacing it. The saved
+      // text appears below immediately, so an empty box never looks like a failed
+      // save — which was the reason it used to refill itself.
+      setText("");
       setJustSaved(true);
       window.setTimeout(() => setJustSaved(false), 2500);
       invalidateTrainingData(queryClient);
@@ -42,13 +50,6 @@ export function DailyLogBox({ today }: { today?: string }) {
   const all = logs.data?.results ?? [];
   const todaysLog = all.find((l) => l.log_date === todayDate) ?? null;
   const earlier = all.filter((l) => l.log_date !== todayDate).slice(0, 4);
-
-  // Prefill today's entry so "Save entry" edits it rather than appearing to do
-  // nothing. Only once per date, so it never fights what is being typed.
-  if (todaysLog && loadedFor !== todayDate && text === "") {
-    setLoadedFor(todayDate);
-    setText(todaysLog.text);
-  }
 
   return (
     <div className="card stack" style={{ gap: 12 }}>
@@ -66,16 +67,19 @@ export function DailyLogBox({ today }: { today?: string }) {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="e.g. two beers and biryani last night, slept 5.5 hours, legs feel heavy"
+          placeholder={todaysLog
+            ? "Add another note — how the run went, what you ate, how you feel now"
+            : "e.g. two beers and biryani last night, slept 5.5 hours, legs feel heavy"}
         />
         <div className="row" style={{ justifyContent: "space-between" }}>
           <span className="faint">
-            Sleep, alcohol and mood are picked out automatically.
+            Sleep, food, alcohol, pain and mood are read out of the sentence — including
+            whether you are writing about today or tomorrow.
           </span>
           <div className="row" style={{ gap: 8 }}>
             {justSaved && <span className="chip good">Saved</span>}
             <button type="submit" disabled={save.isPending || !text.trim()}>
-              {save.isPending ? "Saving…" : todaysLog ? "Update today's entry" : "Save entry"}
+              {save.isPending ? "Saving…" : todaysLog ? "Add to today's log" : "Save entry"}
             </button>
           </div>
         </div>
@@ -83,18 +87,45 @@ export function DailyLogBox({ today }: { today?: string }) {
       </form>
 
       {todaysLog && (
-        <div className="row" style={{ gap: 7 }}>
-          <span className="faint mono">
-            {todaysLog.log_date}
-            {todaysLog.logged_at && ` · written ${todaysLog.logged_at}`}
-          </span>
-          {(todaysLog.detected ?? []).map((d) => (
-            <span key={d} className="chip good">{d}</span>
-          ))}
-          {(todaysLog.detected ?? []).length === 0 && (
-            <span className="chip warn">nothing detected</span>
-          )}
-        </div>
+        <>
+          <div className="row" style={{ gap: 7 }}>
+            <span className="faint mono">
+              {todaysLog.log_date}
+              {todaysLog.logged_at && ` · written ${todaysLog.logged_at}`}
+            </span>
+            {/* The whole point of asking which day an entry is about: say so when
+                the answer is not the day it was typed. */}
+            {todaysLog.applies_to_date && todaysLog.applies_to_date !== todaysLog.log_date && (
+              <span className="chip accent" title={todaysLog.applies_to_reason}>
+                counted as {todaysLog.applies_to_date}
+              </span>
+            )}
+            {(todaysLog.detected ?? []).map((d) => (
+              <span key={d} className="chip good">{d}</span>
+            ))}
+            {(todaysLog.detected ?? []).length === 0 && todaysLog.ai_status !== "pending" && (
+              <span className="chip warn">nothing detected</span>
+            )}
+          </div>
+
+          {/* What is actually on file for today. The box clears after a save, so
+              without this an empty box would look exactly like a lost entry — which
+              is why it used to refill itself instead. Each note kept on its own
+              line, in the order it was written. */}
+          <div className="log-today">
+            {todaysLog.text.split("\n").filter((line) => line.trim()).map((line, i) => (
+              <p key={i}>{line}</p>
+            ))}
+          </div>
+
+          <LogAdviceBlock
+            advice={todaysLog.advice}
+            summary={todaysLog.summary}
+            status={todaysLog.ai_status}
+            model={todaysLog.ai_model}
+            compact
+          />
+        </>
       )}
 
       {earlier.length > 0 && (
@@ -106,6 +137,11 @@ export function DailyLogBox({ today }: { today?: string }) {
                 <span className="faint mono">
                   {l.log_date}{l.logged_at && ` · ${l.logged_at}`}
                 </span>
+                {l.applies_to_date && l.applies_to_date !== l.log_date && (
+                  <span className="chip accent" title={l.applies_to_reason}>
+                    counted as {l.applies_to_date}
+                  </span>
+                )}
                 {(l.detected ?? []).map((d) => (
                   <span key={d} className="chip good">{d}</span>
                 ))}

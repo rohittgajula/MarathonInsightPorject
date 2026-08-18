@@ -3,7 +3,10 @@ import { api } from "../api/client";
 import { DailyLogBox } from "../components/DailyLogBox";
 import { GarminButton } from "../components/GarminButton";
 import { SessionPlan } from "../components/SessionPlan";
+import { HeroSlides } from "../components/HeroSlides";
+import { NextAchievement } from "../components/NextAchievement";
 import { WeekTable } from "../components/WeekTable";
+import { FuelingPanel } from "../components/FuelingPanel";
 import { SessionWeather } from "../components/SessionWeather";
 import { TrendCharts } from "../components/TrendCharts";
 import { WellnessCharts } from "../components/WellnessCharts";
@@ -45,9 +48,7 @@ export function Home() {
               <h1>{label}: {t ? t.title : "no plan set"}</h1>
               <p>
                 {t
-                  ? t.kind === "rest"
-                    ? "A rest day. Adaptation happens on the days you don't run."
-                    : `Week ${t.plan_week} of 17 · ${t.phase}. Run blocks at 10:00–10:45/km — keep your cadence and shorten your stride.`
+                  ? `Week ${t.plan_week} of 17 · ${t.phase}`
                   : "Add a target race to get a session prescribed for every day."}
               </p>
             </div>
@@ -77,10 +78,35 @@ export function Home() {
             </p>
           </div>
         )}
+        {/* One band rather than a growing stack. The readiness note above stays
+            pinned deliberately — it is the reason the session changed, and on a
+            critical day it is a safety message. */}
+        <HeroSlides
+          slides={[
+            ...(t ? [{
+              key: "session",
+              node: (
+                <div>
+                  <p className="hero-slide-title">What this session is</p>
+                  <p className="hero-slide-body">{t.detail}</p>
+                </div>
+              ),
+            }] : []),
+            ...(data.next_achievement ? [{
+              key: "achievement",
+              node: <NextAchievement item={data.next_achievement} />,
+            }] : []),
+          ]}
+        />
       </div>
 
 
       {data.session_weather && <SessionWeather weather={data.session_weather} />}
+
+      {/* Above the session itself, because it is the part with a deadline: the
+          pre-run drink has to happen two hours out, which is before most people
+          open the app to see what the session is. */}
+      <FuelingPanel />
 
       <SessionPlan steps={data.session_steps ?? []} targets={data.session_targets ?? []} />
 

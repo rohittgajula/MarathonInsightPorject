@@ -122,8 +122,23 @@ def evaluate(log, metrics=None) -> Adjustment:
 
     if getattr(log, "pain_area", ""):
         area = log.pain_area.replace("_", " ")
-        reasons.append(f"you reported {area} pain")
-        to_rest = True
+        severity = getattr(log, "pain_severity", None)
+        when = getattr(log, "pain_when", "") or ""
+
+        # A 1–2 twinge noticed at rest is not the same signal as pain that stopped a
+        # run, and treating them identically taught the athlete to stop reporting the
+        # small ones. Anything unquantified is still treated as serious: the rule
+        # only relaxes where the reading is explicit about being mild.
+        serious = severity is None or severity >= 3 or when == "running"
+        detail = f"you reported {area} pain"
+        if when == "running":
+            detail += " while running"
+        elif when == "after_running":
+            detail += " after running"
+        if severity is not None:
+            detail += f" (severity {severity}/5)"
+        reasons.append(detail)
+        to_rest = to_rest or serious
     if getattr(log, "illness", False):
         reasons.append("you logged feeling unwell")
         to_rest = True
@@ -144,8 +159,14 @@ def _is_critical(metrics, log) -> bool:
         if metrics.sleep_hours is not None and metrics.sleep_hours < CRITICAL_SLEEP_H:
             return True
     if log is not None:
-        if getattr(log, "pain_area", "") or getattr(log, "illness", False):
+        if getattr(log, "illness", False):
             return True
+        if getattr(log, "pain_area", ""):
+            severity = getattr(log, "pain_severity", None)
+            # Unquantified pain stays critical — the safe reading of "I don't know
+            # how bad it is" is that it is bad.
+            if severity is None or severity >= 3 or getattr(log, "pain_when", "") == "running":
+                return True
         if log.sleep_hours is not None and log.sleep_hours < CRITICAL_SLEEP_H:
             return True
     return False
@@ -199,10 +220,25 @@ def apply(session, log, metrics=None) -> None:
         session.kind = "walk" if not painful else "rest"
         session.focus = "Recover"
         session.run_minutes = 0.0
+        session.reps = 0
+        session.rep_run_minutes = 0.0
+        # Dropped to rest: nothing prescribed. Eased to a walk: the whole 28 min is
+        # walking. Leaving the interval session's walk figure here would have the
+        # table promising recovery halves for run blocks that no longer exist.
+        session.walk_minutes = 0.0 if painful else 28.0
+        # Dropped for pain or illness: not even the optional walk. That is the one
+        # case where "rest" means rest rather than "walk if you fancy it".
+        session.optional = False
         session.distance_km = 0.0 if painful else 2.5
         # An eased day is still a walk with targets, not a blank row.
         session.target_pace = "" if painful else "9:00–11:00/km"
         session.target_hr = "" if painful else "110–130 bpm"
+        # The numbers must follow the label. Leaving the running band behind is what
+        # produced a running heart rate on a prescribed walk.
+        session.target_pace_min_s = 0 if painful else 540
+        session.target_pace_max_s = 0 if painful else 660
+        session.target_hr_min = 0 if painful else 110
+        session.target_hr_max = 0 if painful else 130
         return
 
     # Otherwise keep the session but cut the running volume roughly in half.
@@ -212,22 +248,35 @@ def apply(session, log, metrics=None) -> None:
     )
     if session.kind == "intervals" and session.run_minutes:
         session.run_minutes = round(session.run_minutes * 0.6, 1)
+        # Cut rounds rather than shortening each one: the point of a run block is
+        # holding it, so a shortened week keeps the block length and does fewer.
+        if session.reps:
+            session.reps = max(1, round(session.reps * 0.6))
         session.title = f"{session.title} — shortened"
         # Totals must follow the shortened work, not the original prescription.
         session.total_minutes = round(session.run_minutes * 3 + 10)
+        session.walk_minutes = round(session.total_minutes - session.run_minutes, 1)
     elif session.kind == "long" and session.distance_km:
         session.distance_km = round(session.distance_km * 0.7, 1)
         session.title = f"Long run — {session.distance_km:g} km (shortened)"
+        # The run/walk split is a ratio, so it survives the session shrinking.
+        share = session.run_minutes / session.total_minutes if session.total_minutes else 0.0
         session.total_minutes = round(session.distance_km * 11)
+        session.run_minutes = round(session.total_minutes * share, 1)
+        session.walk_minutes = round(session.total_minutes * (1 - share), 1)
 
 
 def log_for(athlete, on: dt.date):
-    """The log that should influence a session on `on` — the night before it."""
-    from apps.journal.models import DailyLog
+    """The log that should influence a session on `on` — the night before it.
+
+    Ordered by the day the entry is *about* rather than the day it was typed, so a
+    note written late on Monday about Tuesday's run reaches Tuesday's session.
+    """
+    from apps.journal.models import effective_logs
 
     return (
-        DailyLog.objects.filter(athlete=athlete, log_date__lte=on)
-        .order_by("-log_date", "-created_at")
+        effective_logs(athlete, end=on)
+        .order_by("-effective", "-created_at")
         .first()
     )
 

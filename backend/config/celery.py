@@ -24,4 +24,11 @@ app.conf.beat_schedule = {
         "task": "apps.ingest.tasks.sync_all_athletes",
         "schedule": 3600.0,
     },
+    # Logs written while the LLM quota was spent, or while the key was missing,
+    # stay unread until something retries them. Ten minutes is well inside a free
+    # tier's reset window and costs nothing when there is nothing to do.
+    "sweep-unread-logs": {
+        "task": "apps.journal.tasks.sweep_unread",
+        "schedule": 600.0,
+    },
 }

@@ -5,17 +5,19 @@ import logging
 
 from django.utils import timezone
 
-logger = logging.getLogger(__name__)
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.activities.models import Activity
+from apps.achievements import services as achievement_services
 from apps.journal.models import DailyLog
 
 from . import coaching, insights, readiness
 from .models import Race
+
+logger = logging.getLogger(__name__)
 
 RUN_SPORTS = ["running", "trail_running", "treadmill_running", "track_running", "virtual_run"]
 from .template import session_for, upcoming
@@ -105,6 +107,14 @@ def dashboard(request):
     last_run = next((a for a in activities if a.sport in RUN_SPORTS), None)
     coach_metrics = {"last_avg_hr": last_run.avg_hr if last_run else None}
 
+    # Evaluating the catalogue walks every run, so it is guarded: a motivational
+    # line is never worth failing the whole dashboard for.
+    try:
+        next_achievement = achievement_services.next_up(athlete)
+    except Exception:  # noqa: BLE001
+        logger.exception("could not resolve the next achievement")
+        next_achievement = None
+
     cards = insights.build(athlete, activities[0] if activities else None,
                            recent_metrics, log_count, focus_session,
                            wellness=wellness, today=today)
@@ -150,6 +160,10 @@ def dashboard(request):
         "local_date": today,
         "week": [_session_dict(s) for s in week],
         "insights": [{"tone": c.tone, "headline": c.headline, "detail": c.detail} for c in cards],
+        # One thing within reach, for the top of the page. Null once everything is
+        # earned, and the dashboard simply omits the line rather than inventing a
+        # consolation goal.
+        "next_achievement": next_achievement,
         "trend": trend,
         "activity_count": Activity.objects.filter(athlete=athlete).count(),
         "log_count": log_count,

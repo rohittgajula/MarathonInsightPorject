@@ -19,6 +19,13 @@ class DailyLog(OwnedByAthlete):
     log_date = models.DateField(db_index=True)
     text = models.TextField()
 
+    # The day the entry is *about*, which is not always the day it was typed. A note
+    # written at 23:40 about tomorrow's early run belongs to tomorrow; one written on
+    # waking about last night's sleep belongs to yesterday. Null means "same day",
+    # which is the overwhelming majority — read it through `effective_date`.
+    applies_to_date = models.DateField(null=True, blank=True, db_index=True)
+    applies_to_reason = models.CharField(max_length=200, blank=True)
+
     # Extracted, not authored. `extraction_version` records how they were derived so
     # a re-parse can find rows that predate an improved extractor.
     alcohol_units = models.FloatField(null=True, blank=True)
@@ -41,6 +48,22 @@ class DailyLog(OwnedByAthlete):
 
     extraction_version = models.PositiveSmallIntegerField(default=2)
 
+    # The language model's full structured reading, stored whole. Keeping the raw
+    # response means a later rule can use a field nothing reads today without
+    # re-billing the entire history — the same reason the text itself is kept.
+    ai_analysis = models.JSONField(default=dict, blank=True)
+    ai_status = models.CharField(
+        max_length=12, default="pending",
+        help_text="pending | done | failed | unavailable (no API key)",
+    )
+    ai_model = models.CharField(max_length=40, blank=True)
+
+    # Severity and timing of the worst reported pain. `pain_area` alone could not
+    # distinguish "slight twinge afterwards" from "had to stop running" — and those
+    # two call for opposite decisions.
+    pain_severity = models.PositiveSmallIntegerField(null=True, blank=True)
+    pain_when = models.CharField(max_length=16, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -54,7 +77,34 @@ class DailyLog(OwnedByAthlete):
     def __str__(self):
         return f"{self.log_date}: {self.text[:40]}"
 
+    @property
+    def effective_date(self):
+        """The day this entry describes. Everything that reads a log should use this."""
+        return self.applies_to_date or self.log_date
+
+    def _clear_ai(self) -> None:
+        """Drop everything derived from a previous version of the text."""
+        self.ai_analysis = {}
+        self.ai_status = "pending"
+        self.ai_model = ""
+        self.applies_to_date = None
+        self.applies_to_reason = ""
+        self.pain_severity = None
+        self.pain_when = ""
+
     def save(self, *args, **kwargs):
+        # An edited entry has not been read yet. Leaving the old reading in place is
+        # worse than having none: `applies_to_date` would keep filing the entry
+        # against a day derived from words that are no longer in it, and the summary
+        # shown to the athlete would describe something they did not write.
+        if self.pk:
+            previous = (
+                DailyLog.objects.filter(pk=self.pk)
+                .values_list("text", flat=True).first()
+            )
+            if previous is not None and previous != self.text:
+                self._clear_ai()
+
         extracted = extract(self.text)
         self.alcohol_units = extracted["alcohol_units"]
         self.sleep_hours = extracted["sleep_hours"]
@@ -68,6 +118,34 @@ class DailyLog(OwnedByAthlete):
 
 
 EXTRACTION_VERSION = 3
+
+
+def effective_logs(athlete, start=None, end=None):
+    """Logs annotated with the day they are *about*, filtered on that day.
+
+    Everything that asks "what did they write about day D" must go through here.
+    Filtering on `log_date` instead silently drops the case the whole
+    `applies_to_date` field exists for — an entry typed at 23:40 about tomorrow.
+    """
+    from django.db.models import F
+    from django.db.models.functions import Coalesce
+
+    qs = DailyLog.objects.filter(athlete=athlete).annotate(
+        effective=Coalesce(F("applies_to_date"), F("log_date"))
+    )
+    if start is not None:
+        qs = qs.filter(effective__gte=start)
+    if end is not None:
+        qs = qs.filter(effective__lte=end)
+    return qs
+
+
+def logs_by_day(athlete, start, end) -> dict:
+    """Effective date -> log, for a range. Later writes win on a collision."""
+    out = {}
+    for log in effective_logs(athlete, start, end).order_by("log_date", "created_at"):
+        out[log.effective] = log
+    return out
 
 # Rough standard-drink equivalents. Deliberately coarse — the goal is "did you drink
 # and roughly how much", which is all the correlation analysis can support anyway.

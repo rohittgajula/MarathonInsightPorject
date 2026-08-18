@@ -2,18 +2,19 @@
 
 import datetime as dt
 
-from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.activities.models import Activity
-from apps.journal.models import DailyLog
+from apps.journal.models import DailyLog, logs_by_day as journal_logs_by_day
 from apps.journal.wellness import DailyMetrics
 
-from . import readiness
 from .models import Race
+from . import exercises as exercise_lib
+from .fueling import plan as fueling_plan
+from .session_review import build as build_day_review, planned_for, session_payload
 from .template import session_for
 from . import niggles as niggle_module
 from . import weekly as weekly_module
@@ -67,39 +68,18 @@ def calendar(request):
             athlete=athlete, metric_date__gte=start, metric_date__lte=end
         )
     }
-    logs_by_day = {
-        l.log_date: l
-        for l in DailyLog.objects.filter(
-            athlete=athlete, log_date__gte=start, log_date__lte=end
-        )
-    }
+    # Keyed by the day each entry is *about*, not the day it was typed — see
+    # journal.models.effective_logs.
+    logs_by_day = journal_logs_by_day(athlete, start, end)
 
     days = []
     cursor = start
     while cursor <= end:
-        session = session_for(race.race_date, cursor, athlete) if race else None
-
         # The night before is what governs a session, so a note written on day D
-        # shapes day D+1 — but only where that night actually has data.
-        #
-        # Tomorrow is the one day allowed to fall back to "most recent", because for
-        # tomorrow that genuinely means last night. Every later day requires its own
-        # preceding row: projecting tonight's sleep onto a session three weeks out
-        # would mark the whole calendar "shortened" off a single bad night.
-        if session and cursor >= today:
-            prior = cursor - dt.timedelta(days=1)
-            # Wellness and logs are dated differently and must not be looked up the
-            # same way. Garmin dates a night by the morning it ends, so day D's own
-            # row is the sleep before a session on D. A written note, by contrast,
-            # is usually typed the evening before, so D-1 is the one that applies.
-            wellness_prior = metrics_by_day.get(cursor)
-            if cursor == today + dt.timedelta(days=1):
-                log = logs_by_day.get(prior) or readiness.log_for(athlete, prior)
-                wellness_prior = wellness_prior or readiness.metrics_for(athlete, cursor)
-            else:
-                log = logs_by_day.get(prior) or logs_by_day.get(cursor)
-            if log or wellness_prior:
-                readiness.apply(session, log, wellness_prior)
+        # shapes day D+1. That resolution lives in session_review.planned_for, which
+        # the day-detail endpoint also calls — the popup explaining a row must be
+        # judging the same session the row displays.
+        session = planned_for(athlete, cursor, race, today, metrics_by_day, logs_by_day)
 
         done = activities.get(cursor, [])
         wellness = metrics_by_day.get(cursor)
@@ -110,15 +90,7 @@ def calendar(request):
             "is_today": cursor == today,
             "is_past": cursor < today,
             "is_race": bool(race and cursor == race.race_date),
-            "planned": ({
-                "kind": session.kind, "title": session.title, "detail": session.detail,
-                "focus": session.focus, "target_pace": session.target_pace,
-                "target_hr": session.target_hr, "run_minutes": session.run_minutes,
-                "distance_km": session.distance_km, "total_minutes": session.total_minutes,
-                "plan_week": session.plan_week, "phase": session.phase, "note": session.note,
-                "adjusted": session.adjusted, "adjust_reason": session.adjust_reason,
-                "adjust_severity": session.adjust_severity,
-            } if session else None),
+            "planned": session_payload(session),
             "activities": [{
                 "id": a.id, "sport": a.sport,
                 "distance_km": round(a.total_distance_m / 1000, 2),
@@ -143,6 +115,115 @@ def calendar(request):
         "race_date": race.race_date if race else None,
         "days": days,
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def day_review(request):
+    """One day in detail: what was prescribed, what was recorded, and what to change.
+
+    The week table can only show the prescription. This is the other half of that
+    row — opened from it, and judging the same session it displays.
+    """
+    athlete = _athlete(request)
+    on = _parse(request.query_params.get("date"), athlete.local_today)
+    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+    return Response(build_day_review(athlete, on, race))
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def fueling(request):
+    """Fluid, food and salt for a day's session, scaled to it and to the forecast.
+
+    Defaults to the day the dashboard is showing rather than always to today: on a
+    rest afternoon the useful answer is about tomorrow morning's run, and asking the
+    athlete to change a date to get it would be the wrong way round.
+    """
+    from apps.ingest.weather import forecast as weather_forecast
+
+    athlete = _athlete(request)
+    today = athlete.local_today
+    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+    if race is None:
+        return Response({"detail": "No target race set."}, status=404)
+
+    on = _parse(request.query_params.get("date"), None)
+    if on is None:
+        # A rest day has nothing to fuel, so look forward to the next day that has
+        # something. The raw template is enough to find it — readiness is applied
+        # below, once the date is settled.
+        on = today
+        if session_for(race.race_date, today, athlete).kind == "rest":
+            for ahead in range(1, 8):
+                candidate = today + dt.timedelta(days=ahead)
+                if session_for(race.race_date, candidate, athlete).kind != "rest":
+                    on = candidate
+                    break
+
+    # The eased session is the one the athlete is actually doing, and an eased
+    # session is a shorter walk rather than a run — which changes every figure
+    # below. Reading the raw template here would have the panel fuelling a session
+    # the dashboard had already called off.
+    prior = on - dt.timedelta(days=1)
+    metrics_by_day = {
+        m.metric_date: m for m in
+        DailyMetrics.objects.filter(athlete=athlete, metric_date__in=[prior, on])
+    }
+    session = planned_for(
+        athlete, on, race, today, metrics_by_day, journal_logs_by_day(athlete, prior, on)
+    )
+    if session is None:
+        return Response({"detail": "No session for that date."}, status=404)
+
+    conditions = weather_forecast(athlete, on) or {}
+    payload = fueling_plan(athlete, session, conditions)
+    payload["date"] = on
+    payload["is_today"] = on == today
+    payload["adjusted"] = session.adjusted
+    payload["conditions"] = conditions
+    return Response(payload)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def exercise_library(request):
+    """The whole strength / mobility / rehab catalogue, plus any live prescription.
+
+    `?area=` returns the routine for one niggle; without it, the library plus the
+    prescriptions implied by whatever the athlete has most recently reported.
+    """
+    athlete = _athlete(request)
+    payload = exercise_lib.catalogue()
+
+    area = request.query_params.get("area")
+    if area:
+        severity = request.query_params.get("severity")
+        payload["prescriptions"] = [exercise_lib.prescription(
+            area,
+            severity=int(severity) if (severity or "").isdigit() else 2,
+            when=request.query_params.get("when") or "unclear",
+        )]
+        return Response(payload)
+
+    # Standing prescriptions from the most recent log that reported anything.
+    recent = (
+        DailyLog.objects.filter(athlete=athlete)
+        .exclude(pain_area="")
+        .order_by("-log_date")
+        .first()
+    )
+    payload["prescriptions"] = (
+        [exercise_lib.prescription(
+            recent.pain_area,
+            severity=recent.pain_severity or 2,
+            when=recent.pain_when or "unclear",
+        )] if recent else []
+    )
+    payload["from_log"] = ({
+        "date": recent.log_date, "text": recent.text,
+    } if recent else None)
+    return Response(payload)
 
 
 @api_view(["GET"])

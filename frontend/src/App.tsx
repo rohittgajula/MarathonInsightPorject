@@ -15,6 +15,7 @@ import { Settings } from "./pages/Settings";
 import { Races } from "./pages/Races";
 import { Technique } from "./pages/Technique";
 import { Warmup } from "./pages/Warmup";
+import Exercises from "./pages/Exercises";
 import { usePointerGlow } from "./lib/usePointerGlow";
 import type { Race } from "./lib/types";
 
@@ -24,6 +25,7 @@ const NAV = [
   { to: "/weekly", label: "Weekly review", end: false },
   { to: "/activities", label: "Activities", end: false },
   { to: "/warmup", label: "Warm-up", end: false },
+  { to: "/exercises", label: "Strength & rehab", end: false },
   { to: "/technique", label: "How to run", end: false },
   { to: "/journal", label: "Journal", end: false },
   { to: "/achievements", label: "Achievements", end: false },
@@ -90,6 +92,7 @@ export default function App() {
         <Route path="/weekly" element={<Weekly />} />
         <Route path="/race-day" element={<RaceDay />} />
         <Route path="/warmup" element={<Warmup />} />
+        <Route path="/exercises" element={<Exercises />} />
         <Route path="/technique" element={<Technique />} />
         <Route path="/journal" element={<Journal />} />
         <Route path="/achievements" element={<Achievements />} />

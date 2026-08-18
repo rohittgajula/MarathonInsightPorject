@@ -1,20 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../api/client";
-import { dateStr, durStr } from "../lib/format";
+import { achievementValue, dateStr } from "../lib/format";
 import type { AchievementBoard, AchievementItem } from "../lib/types";
 
 /* Locked achievements show real progress rather than a padlock: "4:51 of 10:00" tells
    you where you actually are and what the next step costs. Progress is capped below
    100% until earned, so a bar never sits full on something you have not done. */
 
-function formatValue(item: AchievementItem, value: number): string {
-  switch (item.format) {
-    case "duration": return durStr(value);
-    case "distance": return `${(value / 1000).toFixed(2)} km`;
-    case "percent": return `${Math.round(value)}%`;
-    default: return `${Math.round(value * 10) / 10}`;
-  }
-}
+const formatValue = (item: AchievementItem, value: number) =>
+  achievementValue(item.format, value);
 
 function Card({ item }: { item: AchievementItem }) {
   const done = item.earned;

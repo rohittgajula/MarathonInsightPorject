@@ -41,6 +41,12 @@ services:
       REDIS_URL: redis://redis:6379/0
       MEDIA_ROOT: /data/media
       GARMIN_TOKEN_ROOT: /data/garmin_tokens
+      # Both optional. With neither set, daily logs fall back to the keyword
+      # extractor and the app says so rather than failing.
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # anthropic | gemini. Unset, whichever key is present is used.
+      LOG_AI_PROVIDER: ${LOG_AI_PROVIDER:-}
     volumes:
       - ./backend:/app
       - media:/data/media

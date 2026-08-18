@@ -52,3 +52,17 @@ export function relativeTime(iso: string | null | undefined): string {
   if (seconds < 2_592_000) return rtf.format(-Math.round(seconds / 86_400), "day");
   return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short" });
 }
+
+/** An achievement's value in its own units. Shared with the achievements page so
+ *  the dashboard line and the card can never state the same number differently. */
+export function achievementValue(
+  format: "number" | "duration" | "distance" | "percent",
+  value: number,
+): string {
+  switch (format) {
+    case "duration": return durStr(value);
+    case "distance": return `${(value / 1000).toFixed(2)} km`;
+    case "percent": return `${Math.round(value)}%`;
+    default: return `${Math.round(value * 10) / 10}`;
+  }
+}
