@@ -25,15 +25,92 @@ class Insight:
     detail: str
 
 
+# A resting heart rate this far above the recent baseline is the classic early
+# warning for fatigue or illness — usually a day or two before it is felt.
+RHR_RISE_BPM = 4
+# Nights of sleep debt in a week before it is worth naming.
+SLEEP_DEBT_H = 6.0
+
+
+def _recovery_cards(wellness: list, today) -> list[Insight]:
+    """Cards driven by the watch, which refresh with every daily sync."""
+    if not wellness:
+        return []
+
+    out: list[Insight] = []
+    latest = wellness[-1]
+    week = wellness[-7:]
+
+    readiness = latest.get("training_readiness")
+    if readiness is not None:
+        if readiness < 20:
+            out.append(Insight(
+                "warn", f"Training readiness {readiness}/100 today",
+                "Your watch is saying today is not a day to train. Walk if you want to "
+                "move, but the session can wait — this is the number the plan defers to.",
+            ))
+        elif readiness < 40:
+            out.append(Insight(
+                "warn", f"Training readiness {readiness}/100 today",
+                "Low. Take the easy end of the pace range and stop if it feels harder "
+                "than usual.",
+            ))
+        elif readiness >= 65:
+            out.append(Insight(
+                "good", f"Training readiness {readiness}/100 today",
+                "A good day to do the session as written.",
+            ))
+
+    debts = [w.get("sleep_deficit_hours") for w in week
+             if w.get("sleep_deficit_hours") is not None]
+    total_debt = sum(d for d in debts if d > 0)
+    if total_debt >= SLEEP_DEBT_H:
+        nights = sum(1 for d in debts if d > 0)
+        out.append(Insight(
+            "warn", f"{total_debt:.0f} hours of sleep debt this week",
+            f"Short on {nights} of the last {len(debts)} nights. At your stage the "
+            "aerobic adaptations you are training for are consolidated during sleep, "
+            "so this blunts the work rather than just making you tired.",
+        ))
+
+    rhrs = [w.get("resting_hr") for w in wellness if w.get("resting_hr")]
+    if len(rhrs) >= 7:
+        recent = rhrs[-3:]
+        baseline = rhrs[-14:-3] or rhrs[:-3]
+        if baseline:
+            delta = sum(recent) / len(recent) - sum(baseline) / len(baseline)
+            if delta >= RHR_RISE_BPM:
+                out.append(Insight(
+                    "warn", f"Resting heart rate up {delta:.0f} bpm on your baseline",
+                    "A sustained rise usually shows up a day or two before you feel "
+                    "run down. Worth easing off until it settles.",
+                ))
+            elif delta <= -RHR_RISE_BPM:
+                out.append(Insight(
+                    "good", f"Resting heart rate down {abs(delta):.0f} bpm",
+                    "A falling resting heart rate is one of the clearest signs aerobic "
+                    "fitness is improving.",
+                ))
+    return out
+
+
 def _pace(seconds: Optional[float]) -> str:
     if not seconds:
         return "—"
     return f"{int(seconds // 60)}:{int(seconds % 60):02d}/km"
 
 
-def build(athlete, last_activity, recent_metrics: list, log_count: int, session) -> list[Insight]:
-    """recent_metrics: ActivityMetrics ordered newest first."""
+def build(athlete, last_activity, recent_metrics: list, log_count: int, session,
+          wellness: list | None = None, today=None) -> list[Insight]:
+    """recent_metrics: ActivityMetrics ordered newest first.
+
+    wellness is ordered oldest first. Activity-derived cards only change when a new
+    run lands, which on three runs a week means the panel can sit unchanged for days.
+    The recovery cards below move every morning, which is both more useful and a
+    truer picture of what is actually different today.
+    """
     out: list[Insight] = []
+    out.extend(_recovery_cards(wellness or [], today))
 
     if last_activity is None:
         out.append(Insight(

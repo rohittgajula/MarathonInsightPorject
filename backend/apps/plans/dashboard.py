@@ -81,22 +81,6 @@ def dashboard(request):
         if session.date == focus_date:
             readiness.apply(session, latest_log, latest_metrics)
 
-    cards = insights.build(athlete, activities[0] if activities else None,
-                           recent_metrics, log_count, focus_session)
-
-    # Trend series, oldest first so charts read left to right.
-    trend = [
-        {
-            "date": a.local_date,
-            "distance_km": round(a.total_distance_m / 1000, 2),
-            "longest_run_min": round(a.metrics.longest_run_s / 60, 1) if hasattr(a, "metrics") else None,
-            "run_pace_s": a.metrics.avg_run_pace_s_per_km if hasattr(a, "metrics") else None,
-            "discipline_pct": a.metrics.pace_discipline_pct if hasattr(a, "metrics") else None,
-            "hr_recovery": a.metrics.avg_hr_recovery_60s if hasattr(a, "metrics") else None,
-        }
-        for a in reversed(activities)
-    ]
-
     from apps.journal.wellness import DailyMetrics
 
     wellness = [
@@ -119,6 +103,23 @@ def dashboard(request):
 
     last_run = next((a for a in activities if a.sport in RUN_SPORTS), None)
     coach_metrics = {"last_avg_hr": last_run.avg_hr if last_run else None}
+
+    cards = insights.build(athlete, activities[0] if activities else None,
+                           recent_metrics, log_count, focus_session,
+                           wellness=wellness, today=today)
+
+    # Trend series, oldest first so charts read left to right.
+    trend = [
+        {
+            "date": a.local_date,
+            "distance_km": round(a.total_distance_m / 1000, 2),
+            "longest_run_min": round(a.metrics.longest_run_s / 60, 1) if hasattr(a, "metrics") else None,
+            "run_pace_s": a.metrics.avg_run_pace_s_per_km if hasattr(a, "metrics") else None,
+            "discipline_pct": a.metrics.pace_discipline_pct if hasattr(a, "metrics") else None,
+            "hr_recovery": a.metrics.avg_hr_recovery_60s if hasattr(a, "metrics") else None,
+        }
+        for a in reversed(activities)
+    ]
 
     from apps.ingest.weather import forecast as weather_forecast
 

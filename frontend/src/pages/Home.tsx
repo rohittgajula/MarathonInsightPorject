@@ -97,7 +97,7 @@ export function Home() {
           ))}
         </div>
 
-        <DailyLogBox />
+        <DailyLogBox today={data.local_date} />
       </div>
 
       <div className="card stack">
