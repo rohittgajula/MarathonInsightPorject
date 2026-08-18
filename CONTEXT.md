@@ -179,6 +179,17 @@ prescribed, which is why every insight leads on slowing down.
 Live finding worth knowing: **sleep debt is the loudest signal in his data** — around 20 h
 short across seven nights, readiness dipping to 11/100. Bigger lever right now than pace.
 
+## Deployment
+
+Nothing is deployed yet. `devops/` holds a self-contained course that takes this
+repo from `docker compose` on a laptop to `training.<domain>` on a k3s VPS with
+CI/CD — written to be read offline. Start at `devops/README.md`.
+
+It flags three things in this repo that block any production build, and they are
+lab zero: `npm run build` fails on two `tsc` errors, Django has no `STATIC_ROOT`
+(so the admin loses its CSS at `DEBUG=0`), and both Dockerfiles still run
+development servers while `gunicorn` sits unused in `requirements.txt`.
+
 ## Known gaps / next steps
 
 - **No database tests.** All 46 cover pure logic (segmentation, metrics, extraction).
