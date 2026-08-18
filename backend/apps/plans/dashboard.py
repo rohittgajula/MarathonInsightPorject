@@ -87,6 +87,7 @@ def dashboard(request):
         {
             "date": m.metric_date,
             "sleep_hours": m.sleep_hours,
+            "sleep_window": m.sleep_window,
             "sleep_need_hours": m.sleep_need_hours,
             "sleep_deficit_hours": m.sleep_deficit_hours,
             "sleep_score": m.sleep_score,

@@ -58,6 +58,17 @@ def _humanise_status(phrase: str) -> str:
     return base.replace("_", " ").title()[:40]
 
 
+def _local_dt(value) -> Optional[dt.datetime]:
+    """Garmin's *TimestampLocal fields are epoch-ms already shifted to local wall
+    time, so reading them as UTC gives the clock reading the athlete saw. Applying a
+    timezone on top double-counts the offset — which made a 02:06 bedtime look like
+    07:36 and turned last night's sleep into a morning nap."""
+    try:
+        return dt.datetime.utcfromtimestamp(int(value) / 1000)
+    except (TypeError, ValueError, OSError):
+        return None
+
+
 def fetch_day(client, day: dt.date) -> dict:
     """Collect one day's metrics. Each endpoint is isolated so one failure is partial."""
     iso = day.isoformat()
@@ -89,6 +100,8 @@ def fetch_day(client, day: dt.date) -> dict:
             deep_sleep_seconds=_int(daily.get("deepSleepSeconds")),
             rem_sleep_seconds=_int(daily.get("remSleepSeconds")),
             awake_seconds=_int(daily.get("awakeSleepSeconds")),
+            sleep_start_local=_local_dt(daily.get("sleepStartTimestampLocal")),
+            sleep_end_local=_local_dt(daily.get("sleepEndTimestampLocal")),
         )
         out["hrv_overnight_avg"] = _int(_dig(sleep, "avgOvernightHrv"))
 

@@ -22,6 +22,11 @@ class DailyMetrics(OwnedByAthlete):
     sleep_seconds = models.PositiveIntegerField(null=True, blank=True)
     sleep_need_seconds = models.PositiveIntegerField(null=True, blank=True)
     sleep_score = models.PositiveSmallIntegerField(null=True, blank=True)
+    # The actual window, in the athlete's local wall time. Stored because "5.4 hours"
+    # is ambiguous about which night is meant, and this athlete's main sleep block
+    # often starts after midnight — the exact hours settle it.
+    sleep_start_local = models.DateTimeField(null=True, blank=True)
+    sleep_end_local = models.DateTimeField(null=True, blank=True)
     deep_sleep_seconds = models.PositiveIntegerField(null=True, blank=True)
     rem_sleep_seconds = models.PositiveIntegerField(null=True, blank=True)
     awake_seconds = models.PositiveIntegerField(null=True, blank=True)
@@ -67,6 +72,13 @@ class DailyMetrics(OwnedByAthlete):
 
     def __str__(self):
         return f"{self.metric_date} metrics"
+
+    @property
+    def sleep_window(self) -> str:
+        """e.g. '02:06 to 05:36'. Empty when the device did not record the window."""
+        if not (self.sleep_start_local and self.sleep_end_local):
+            return ""
+        return f"{self.sleep_start_local:%H:%M} to {self.sleep_end_local:%H:%M}"
 
     @property
     def sleep_hours(self):

@@ -203,7 +203,14 @@ function DayDetail({ day }: { day: CalendarDay }) {
           {day.wellness && (
             <div className="row" style={{ gap: 16 }}>
               {day.wellness.sleep_hours != null && (
-                <span className="faint">Slept <b className="mono" style={{ color: "var(--ink)" }}>{day.wellness.sleep_hours} h</b></span>
+                <span className="faint">
+                  Slept <b className="mono" style={{ color: "var(--ink)" }}>{day.wellness.sleep_hours} h</b>
+                  {/* The hours alone are ambiguous about which night is meant, and this
+                      athlete's sleep often starts after midnight. */}
+                  {day.wellness.sleep_window && (
+                    <span className="mono"> ({day.wellness.sleep_window})</span>
+                  )}
+                </span>
               )}
               {day.wellness.sleep_score != null && (
                 <span className="faint">Sleep score <b className="mono" style={{ color: "var(--ink)" }}>{day.wellness.sleep_score}</b></span>

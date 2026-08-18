@@ -69,6 +69,7 @@ export function WellnessCharts({ wellness }: { wellness: WellnessPoint[] }) {
                 return (
                   <Box>
                     <div className="mono">{w.sleep_hours}h slept</div>
+                    {w.sleep_window && <div className="mono t-k">{w.sleep_window}</div>}
                     {w.sleep_need_hours != null && (
                       <div className="mono t-k">{w.sleep_need_hours}h needed</div>
                     )}

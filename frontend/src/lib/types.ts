@@ -208,6 +208,7 @@ export type ChartNotes = Record<
 export interface WellnessPoint {
   date: string;
   sleep_hours: number | null;
+  sleep_window: string;
   sleep_need_hours: number | null;
   sleep_deficit_hours: number | null;
   sleep_score: number | null;
@@ -229,7 +230,7 @@ export interface CalendarDay {
     run_blocks: number | null; longest_run_s: number | null; avg_run_pace_s: number | null;
   }[];
   wellness: {
-    sleep_hours: number | null; sleep_score: number | null;
+    sleep_window: string; sleep_hours: number | null; sleep_score: number | null;
     training_readiness: number | null; resting_hr: number | null;
   } | null;
   log: { text: string; felt: string } | null;

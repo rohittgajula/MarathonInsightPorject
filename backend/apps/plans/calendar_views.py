@@ -88,12 +88,16 @@ def calendar(request):
         # would mark the whole calendar "shortened" off a single bad night.
         if session and cursor >= today:
             prior = cursor - dt.timedelta(days=1)
+            # Wellness and logs are dated differently and must not be looked up the
+            # same way. Garmin dates a night by the morning it ends, so day D's own
+            # row is the sleep before a session on D. A written note, by contrast,
+            # is usually typed the evening before, so D-1 is the one that applies.
+            wellness_prior = metrics_by_day.get(cursor)
             if cursor == today + dt.timedelta(days=1):
                 log = logs_by_day.get(prior) or readiness.log_for(athlete, prior)
-                wellness_prior = metrics_by_day.get(prior) or readiness.metrics_for(athlete, prior)
+                wellness_prior = wellness_prior or readiness.metrics_for(athlete, cursor)
             else:
-                log = logs_by_day.get(prior)
-                wellness_prior = metrics_by_day.get(prior)
+                log = logs_by_day.get(prior) or logs_by_day.get(cursor)
             if log or wellness_prior:
                 readiness.apply(session, log, wellness_prior)
 
@@ -124,6 +128,7 @@ def calendar(request):
                 "avg_run_pace_s": a.metrics.avg_run_pace_s_per_km if hasattr(a, "metrics") else None,
             } for a in done],
             "wellness": ({
+                "sleep_window": wellness.sleep_window,
                 "sleep_hours": wellness.sleep_hours,
                 "sleep_score": wellness.sleep_score,
                 "training_readiness": wellness.training_readiness,
