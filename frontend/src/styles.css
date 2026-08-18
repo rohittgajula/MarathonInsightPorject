@@ -662,3 +662,20 @@ td.num, th.num { text-align: right; }
 .strip-day.done { background: var(--good-soft); border-color: var(--good); }
 .strip-mark { font-size: 13px; font-weight: 700; color: var(--good); min-height: 17px; }
 .strip-day:not(.done) .strip-mark { color: var(--ink-faint); }
+
+/* A critical readiness day is a different message from a mildly compromised one, and
+   rendering them the same way teaches the reader to skim past both. */
+.hero-alert {
+  margin-top: 14px; padding: 13px 15px; border-radius: 10px;
+  background: rgba(0, 0, 0, .26);
+  border: 1px solid rgba(255, 255, 255, .30);
+  border-left: 4px solid #FFD166;
+}
+.hero-alert p { color: #fff; }
+.hero-alert strong { color: #FFD166; }
+
+.adjust-note.critical {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+.adjust-note.critical .eyebrow { color: var(--warn); }

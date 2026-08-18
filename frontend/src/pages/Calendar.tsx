@@ -158,8 +158,10 @@ function DayDetail({ day }: { day: CalendarDay }) {
           </div>
           <p style={{ fontSize: 13.5 }}>{p.detail}</p>
           {p.adjusted && (
-            <div className="adjust-note">
-              <span className="eyebrow">Why this changed</span>
+            <div className={`adjust-note ${p.adjust_severity === "critical" ? "critical" : ""}`}>
+              <span className="eyebrow">
+                {p.adjust_severity === "critical" ? "⚠ Do not train hard today" : "Why this changed"}
+              </span>
               <p>{p.adjust_reason}</p>
             </div>
           )}

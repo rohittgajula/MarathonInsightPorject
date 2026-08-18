@@ -147,6 +147,7 @@ export interface PlannedSession {
   focus: string;
   adjusted: boolean;
   adjust_reason: string;
+  adjust_severity: string;
 }
 
 export interface TrendPoint {

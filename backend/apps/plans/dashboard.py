@@ -29,6 +29,7 @@ def _session_dict(s):
         "target_pace": s.target_pace, "target_hr": s.target_hr,
         "total_minutes": s.total_minutes, "focus": s.focus,
         "adjusted": s.adjusted, "adjust_reason": s.adjust_reason,
+        "adjust_severity": s.adjust_severity,
     }
 
 
@@ -122,7 +123,10 @@ def dashboard(request):
     from apps.ingest.weather import forecast as weather_forecast
 
     session_weather = {}
-    if focus_session and focus_session.kind != "rest":
+    # Any planned day gets a forecast, including a walk or an eased session. Guarding
+    # on kind != "rest" meant the weather vanished at exactly the moment readiness
+    # downgraded the session — the day you most need to know it will feel like 30 C.
+    if focus_session:
         try:
             session_weather = weather_forecast(athlete, focus_date, hour=6)
         except Exception:  # noqa: BLE001 — weather is context, never load-bearing

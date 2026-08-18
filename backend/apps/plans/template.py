@@ -70,6 +70,7 @@ class PlannedSession:
     # Set when a daily log moves the session off the template.
     adjusted: bool = False
     adjust_reason: str = ""
+    adjust_severity: str = ""
     # True for dates earlier than the plan's own start. The table is clamped so those
     # dates still return something sensible, but they are not week 1 — the plan simply
     # had not begun, and judging them against it is meaningless.

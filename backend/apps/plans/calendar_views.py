@@ -113,6 +113,7 @@ def calendar(request):
                 "distance_km": session.distance_km, "total_minutes": session.total_minutes,
                 "plan_week": session.plan_week, "phase": session.phase, "note": session.note,
                 "adjusted": session.adjusted, "adjust_reason": session.adjust_reason,
+                "adjust_severity": session.adjust_severity,
             } if session else None),
             "activities": [{
                 "id": a.id, "sport": a.sport,

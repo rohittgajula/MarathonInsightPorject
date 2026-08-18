@@ -27,11 +27,18 @@ ALCOHOL_UNITS = 2.0
 TIRED_WORDS = {"tired", "sore", "unwell"}
 
 
+# Below these the day is not "a bit compromised" — it is a day to not train.
+CRITICAL_READINESS = 20
+CRITICAL_SLEEP_H = 4.5
+
+
 @dataclass
 class Adjustment:
     applied: bool
     reason: str = ""
     downgrade_to_rest: bool = False
+    # "caution" | "critical". Drives how loudly the UI says it.
+    severity: str = "caution"
 
 
 # Garmin's readiness score is 0-100. Below this the watch itself is saying rest.
@@ -78,11 +85,13 @@ def evaluate(log, metrics=None) -> Adjustment:
             elif measured_sleep < SHORT_SLEEP_H:
                 reasons.append(f"your watch recorded {measured_sleep:g} h of sleep")
 
+    critical = _is_critical(metrics, None)
+
     if log is None:
         if not reasons:
             return Adjustment(False)
         joined = reasons[0] if len(reasons) == 1 else ", ".join(reasons[:-1]) + " and " + reasons[-1]
-        return Adjustment(True, joined, to_rest)
+        return Adjustment(True, joined, to_rest, "critical" if critical else "caution")
 
     # Only fall back to the typed sleep figure when the watch did not measure one.
     if measured_sleep is None and log.sleep_hours is not None:
@@ -122,8 +131,24 @@ def evaluate(log, metrics=None) -> Adjustment:
     if not reasons:
         return Adjustment(False)
 
+    critical = _is_critical(metrics, log)
     joined = reasons[0] if len(reasons) == 1 else ", ".join(reasons[:-1]) + " and " + reasons[-1]
-    return Adjustment(True, joined, to_rest)
+    return Adjustment(True, joined, to_rest, "critical" if critical else "caution")
+
+
+def _is_critical(metrics, log) -> bool:
+    """Severe enough that the honest advice is 'do not train today'."""
+    if metrics is not None:
+        if metrics.training_readiness is not None and metrics.training_readiness < CRITICAL_READINESS:
+            return True
+        if metrics.sleep_hours is not None and metrics.sleep_hours < CRITICAL_SLEEP_H:
+            return True
+    if log is not None:
+        if getattr(log, "pain_area", "") or getattr(log, "illness", False):
+            return True
+        if log.sleep_hours is not None and log.sleep_hours < CRITICAL_SLEEP_H:
+            return True
+    return False
 
 
 def apply(session, log, metrics=None) -> None:
@@ -136,6 +161,7 @@ def apply(session, log, metrics=None) -> None:
         return
 
     session.adjusted = True
+    session.adjust_severity = verdict.severity
 
     if verdict.downgrade_to_rest and session.kind in ("intervals", "jog"):
         # Pain and illness are stop signals, not scale-back signals, and they get
@@ -154,16 +180,22 @@ def apply(session, log, metrics=None) -> None:
                 "No running, and no walking it off either. If it still hurts in two "
                 "days that is a physiotherapy question rather than a training one."
             )
+            session.total_minutes = 0
         else:
             session.adjust_reason = (
                 f"Eased because {verdict.reason}. Running hard on this little sleep "
                 "buys fatigue rather than fitness."
+                + (" This is well past a normal short night — today is for sleeping, "
+                   "not training. Missing one session costs nothing; training on top of "
+                   "this is how people get ill or injured."
+                   if verdict.severity == "critical" else "")
             )
-            session.title = "Easy walk instead of intervals"
+            session.title = "Easy walk — 25–30 min (instead of intervals)"
             session.detail = (
-                "Swap the run blocks for a 25–30 minute walk. You lose nothing from "
-                "one session moved, and you keep the week intact."
+                "Swap the run blocks for a 25–30 minute walk at a comfortable pace. "
+                "You lose nothing from one session moved, and you keep the week intact."
             )
+            session.total_minutes = 28
         session.kind = "rest"
         session.focus = "Recover"
         session.run_minutes = 0.0
@@ -180,9 +212,12 @@ def apply(session, log, metrics=None) -> None:
     if session.kind == "intervals" and session.run_minutes:
         session.run_minutes = round(session.run_minutes * 0.6, 1)
         session.title = f"{session.title} — shortened"
+        # Totals must follow the shortened work, not the original prescription.
+        session.total_minutes = round(session.run_minutes * 3 + 10)
     elif session.kind == "long" and session.distance_km:
         session.distance_km = round(session.distance_km * 0.7, 1)
         session.title = f"Long run — {session.distance_km:g} km (shortened)"
+        session.total_minutes = round(session.distance_km * 11)
 
 
 def log_for(athlete, on: dt.date):

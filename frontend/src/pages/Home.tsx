@@ -56,10 +56,25 @@ export function Home() {
           )}
         </div>
         {t?.adjusted && (
-          <p style={{ marginTop: 14, paddingTop: 12,
-                      borderTop: "1px solid rgba(255,255,255,.22)" }}>
-<strong>Why this changed.</strong> {t.adjust_reason}
-          </p>
+          // A readiness of 11/100 on 3.3 h of sleep is a different message from "you
+          // are a bit short", and rendering them identically teaches the reader to
+          // skim past both.
+          <div
+            className={t.adjust_severity === "critical" ? "hero-alert" : ""}
+            style={t.adjust_severity === "critical" ? undefined : {
+              marginTop: 14, paddingTop: 12,
+              borderTop: "1px solid rgba(255,255,255,.22)",
+            }}
+          >
+            <p>
+              <strong>
+                {t.adjust_severity === "critical"
+                  ? "Do not train hard today. "
+                  : "Why this changed. "}
+              </strong>
+              {t.adjust_reason}
+            </p>
+          </div>
         )}
       </div>
 
