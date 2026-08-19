@@ -47,13 +47,18 @@ export function Home() {
               </div>
               <h1>{label}: {t ? t.title : "no plan set"}</h1>
               <p>
+                {/* Outside the ramp there is no week number to print, and the
+                    phase is the honest answer — "Recovery" says more than a week
+                    index that stopped counting when the race was run. */}
                 {t
-                  ? `Week ${t.plan_week} of 17 · ${t.phase}`
+                  ? t.plan_week
+                    ? `Week ${t.plan_week} of 17 · ${t.phase}`
+                    : t.phase
                   : "Add a target race to get a session prescribed for every day."}
               </p>
             </div>
           </div>
-          {t && (
+          {t && t.weeks_out > 0 && (
             <span className="hero-badge mono">{t.weeks_out} weeks to race</span>
           )}
         </div>

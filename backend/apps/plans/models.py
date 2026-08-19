@@ -1,7 +1,6 @@
 import datetime as dt
 
 from django.db import models
-from django.utils import timezone
 
 from apps.athletes.models import OwnedByAthlete
 
@@ -27,7 +26,10 @@ class Race(OwnedByAthlete):
     goal = models.CharField(max_length=10, choices=Goal.choices, default=Goal.FINISH)
     target_time_s = models.PositiveIntegerField(null=True, blank=True)
 
-    # Exactly one race per athlete drives the plan; enforced below.
+    # One race per athlete is the *target* — the A race the 17-week ramp counts
+    # down to. Every other race is a B race: a hard day inside the block, given its
+    # own short taper and its own recovery window rather than moving the plan. See
+    # `plans/schedule.py` for what the difference actually buys.
     is_target = models.BooleanField(default=False)
     notes = models.TextField(blank=True)
 
@@ -64,8 +66,18 @@ class Race(OwnedByAthlete):
         return f"{self.distance_m / 1000:g}K"
 
     @property
+    def _today(self) -> dt.date:
+        """The athlete's today, never the server's.
+
+        Django's TIME_ZONE is UTC and at 00:48 in Kolkata that is still yesterday —
+        which is a day of countdown, and on race morning is the difference between
+        "today" and "tomorrow".
+        """
+        return self.athlete.local_today
+
+    @property
     def days_until(self) -> int:
-        return (self.race_date - timezone.localdate()).days
+        return (self.race_date - self._today).days
 
     @property
     def weeks_until(self) -> int:
@@ -75,7 +87,7 @@ class Race(OwnedByAthlete):
 
     @property
     def is_past(self) -> bool:
-        return self.race_date < timezone.localdate()
+        return self.race_date < self._today
 
     def week_number(self, on: dt.date | None = None) -> int | None:
         """1-indexed plan week, counting backwards from race week.
@@ -83,7 +95,7 @@ class Race(OwnedByAthlete):
         Week 1 is the first week of the plan; the race falls in the final week.
         Returns None before the plan starts or after the race.
         """
-        on = on or timezone.localdate()
+        on = on or self._today
         if self.is_past:
             return None
         remaining_weeks = (self.race_date - on).days // 7

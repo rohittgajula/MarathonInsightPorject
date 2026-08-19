@@ -104,6 +104,30 @@ export interface Race {
   weeks_until: number;
   is_past: boolean;
   week_number: number | null;
+  /* What this race costs the calendar around it. */
+  recovery_days: number;
+  taper_days: number;
+}
+
+/* The race calendar resolved into the blocks it actually produces — which is the
+   only place the effect of adding a second race is visible as a whole. */
+export interface ScheduleBlock {
+  mode: PlanMode;
+  label: string;
+  start: string;
+  end: string;
+  days: number;
+  race_name: string;
+  race_date: string | null;
+  is_current: boolean;
+  reason: string;
+}
+
+export interface PlanSchedule {
+  today: string;
+  anchor_date: string | null;
+  current: { mode: PlanMode; label: string; reason: string; weeks_out: number };
+  blocks: ScheduleBlock[];
 }
 
 export interface DailyLog {
@@ -222,7 +246,9 @@ export interface PlannedSession {
   kind: "intervals" | "long" | "jog" | "walk" | "cross" | "rest" | "race";
   title: string;
   detail: string;
-  plan_week: number;
+  /* Null outside the 17-week ramp. A recovery day is not "week 15 of 17", and
+     printing a week number over one is the plan claiming a position it has left. */
+  plan_week: number | null;
   weeks_out: number;
   phase: string;
   note: string;
@@ -244,7 +270,15 @@ export interface PlannedSession {
   /* Targets that apply if you do it, rather than work the week depends on. */
   optional?: boolean;
   before_plan?: boolean;
+  /* Which of the schedule's modes produced this day, and why in words. Recovery and
+     rest are the same `kind` and must not read the same. */
+  mode?: PlanMode;
+  mode_reason?: string;
+  race_name?: string;
 }
+
+export type PlanMode =
+  | "build" | "race" | "recovery" | "mini_taper" | "maintenance" | "off_season";
 
 export type Tone = "good" | "warn" | "neutral";
 

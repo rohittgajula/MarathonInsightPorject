@@ -146,7 +146,11 @@ function DayDetail({ day }: { day: CalendarDay }) {
           <div className="eyebrow">{day.is_past ? "What happened" : "Planned"}</div>
           <h2 style={{ marginTop: 3 }}>{dateLabel}</h2>
         </div>
-        {p && <span className="chip accent">Week {p.plan_week} · {p.phase}</span>}
+        {p && (
+          <span className="chip accent">
+            {p.plan_week ? `Week ${p.plan_week} · ${p.phase}` : p.phase}
+          </span>
+        )}
       </div>
 
       {p && (
@@ -157,6 +161,15 @@ function DayDetail({ day }: { day: CalendarDay }) {
             {p.adjusted && <span className="chip accent">adjusted</span>}
           </div>
           <p style={{ fontSize: 13.5 }}>{p.detail}</p>
+          {/* Why this day is off the template. A recovery day and a rest day are
+              the same `kind`, and without this the calendar cannot tell them
+              apart — nor can the person reading it. */}
+          {p.mode && p.mode !== "build" && p.mode !== "race" && p.mode_reason && (
+            <div className="adjust-note">
+              <span className="eyebrow">Why this day</span>
+              <p>{p.mode_reason}</p>
+            </div>
+          )}
           {p.adjusted && (
             <div className={`adjust-note ${p.adjust_severity === "critical" ? "critical" : ""}`}>
               <span className="eyebrow">

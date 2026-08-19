@@ -14,13 +14,12 @@ from apps.activities.models import Activity
 from apps.achievements import services as achievement_services
 from apps.journal.models import DailyLog
 
-from . import coaching, insights, readiness
-from .models import Race
+from . import coaching, insights, readiness, schedule as schedule_module
 
 logger = logging.getLogger(__name__)
 
 RUN_SPORTS = ["running", "trail_running", "treadmill_running", "track_running", "virtual_run"]
-from .template import session_for, upcoming
+from .template import session_in, upcoming_in
 
 
 def _session_dict(s):
@@ -32,6 +31,10 @@ def _session_dict(s):
         "total_minutes": s.total_minutes, "focus": s.focus,
         "adjusted": s.adjusted, "adjust_reason": s.adjust_reason,
         "adjust_severity": s.adjust_severity,
+        # Recovery and rest look identical without the mode, and a week that has
+        # just absorbed a race needs to say so rather than reading as a light week.
+        "mode": s.mode, "mode_reason": s.mode_reason, "race_name": s.race_name,
+        "optional": s.optional, "walk_minutes": s.walk_minutes,
     }
 
 
@@ -44,7 +47,7 @@ def dashboard(request):
 
     today = athlete.local_today
     tomorrow = today + dt.timedelta(days=1)
-    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+    sched = schedule_module.for_athlete(athlete)
 
     # Walks, rides and gym sessions are real training but they are not runs, and
     # putting them in a running-pace trend makes the trend meaningless.
@@ -60,9 +63,9 @@ def dashboard(request):
     recent_metrics = [a.metrics for a in activities if hasattr(a, "metrics")]
     log_count = DailyLog.objects.filter(athlete=athlete).count()
 
-    today_session = session_for(race.race_date, today, athlete) if race else None
-    tomorrow_session = session_for(race.race_date, tomorrow, athlete) if race else None
-    week = upcoming(race.race_date, today, 7, athlete) if race else []
+    today_session = session_in(sched, today, athlete)
+    tomorrow_session = session_in(sched, tomorrow, athlete)
+    week = upcoming_in(sched, today, 7, athlete)
 
     # Which session the athlete actually needs to see.
     #

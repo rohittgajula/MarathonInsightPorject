@@ -14,8 +14,9 @@ from apps.journal.wellness import DailyMetrics
 from .models import Race
 from . import exercises as exercise_lib
 from .fueling import plan as fueling_plan
+from . import schedule as schedule_module
 from .session_review import build as build_day_review, planned_for, session_payload
-from .template import session_for
+from .template import session_in
 from . import niggles as niggle_module
 from . import weekly as weekly_module
 from .coaching import FORM_CUES, TROUBLESHOOTING
@@ -54,7 +55,7 @@ def calendar(request):
         start, end = end, start
     end = min(end, start + dt.timedelta(days=120))
 
-    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+    sched = schedule_module.for_athlete(athlete)
 
     activities = {}
     for a in Activity.objects.filter(
@@ -79,7 +80,7 @@ def calendar(request):
         # shapes day D+1. That resolution lives in session_review.planned_for, which
         # the day-detail endpoint also calls — the popup explaining a row must be
         # judging the same session the row displays.
-        session = planned_for(athlete, cursor, race, today, metrics_by_day, logs_by_day)
+        session = planned_for(athlete, cursor, sched, today, metrics_by_day, logs_by_day)
 
         done = activities.get(cursor, [])
         wellness = metrics_by_day.get(cursor)
@@ -89,7 +90,7 @@ def calendar(request):
             "date": cursor,
             "is_today": cursor == today,
             "is_past": cursor < today,
-            "is_race": bool(race and cursor == race.race_date),
+            "is_race": sched.race_on(cursor) is not None,
             "planned": session_payload(session),
             "activities": [{
                 "id": a.id, "sport": a.sport,
@@ -110,9 +111,17 @@ def calendar(request):
         })
         cursor += dt.timedelta(days=1)
 
+    anchor = sched.anchor(today)
     return Response({
         "from": start, "to": end, "today": today,
-        "race_date": race.race_date if race else None,
+        # The date the ramp is counting down to, which is the target while it is
+        # still ahead and the next race once it is not.
+        "race_date": anchor.date if anchor else None,
+        "races": [
+            {"date": r.date, "name": r.name, "label": r.label,
+             "is_target": r.is_target}
+            for r in sched.races if start <= r.date <= end
+        ],
         "days": days,
     })
 
@@ -127,8 +136,8 @@ def day_review(request):
     """
     athlete = _athlete(request)
     on = _parse(request.query_params.get("date"), athlete.local_today)
-    race = Race.objects.filter(athlete=athlete, is_target=True).first()
-    return Response(build_day_review(athlete, on, race))
+    sched = schedule_module.for_athlete(athlete)
+    return Response(build_day_review(athlete, on, sched))
 
 
 @api_view(["GET"])
@@ -144,9 +153,9 @@ def fueling(request):
 
     athlete = _athlete(request)
     today = athlete.local_today
-    race = Race.objects.filter(athlete=athlete, is_target=True).first()
-    if race is None:
-        return Response({"detail": "No target race set."}, status=404)
+    sched = schedule_module.for_athlete(athlete)
+    if not sched:
+        return Response({"detail": "No races set."}, status=404)
 
     on = _parse(request.query_params.get("date"), None)
     if on is None:
@@ -154,10 +163,10 @@ def fueling(request):
         # something. The raw template is enough to find it — readiness is applied
         # below, once the date is settled.
         on = today
-        if session_for(race.race_date, today, athlete).kind == "rest":
+        if session_in(sched, today, athlete).kind == "rest":
             for ahead in range(1, 8):
                 candidate = today + dt.timedelta(days=ahead)
-                if session_for(race.race_date, candidate, athlete).kind != "rest":
+                if session_in(sched, candidate, athlete).kind != "rest":
                     on = candidate
                     break
 
@@ -171,7 +180,7 @@ def fueling(request):
         DailyMetrics.objects.filter(athlete=athlete, metric_date__in=[prior, on])
     }
     session = planned_for(
-        athlete, on, race, today, metrics_by_day, journal_logs_by_day(athlete, prior, on)
+        athlete, on, sched, today, metrics_by_day, journal_logs_by_day(athlete, prior, on)
     )
     if session is None:
         return Response({"detail": "No session for that date."}, status=404)
@@ -245,8 +254,8 @@ def technique(request):
 @permission_classes([IsAuthenticated])
 def weekly(request):
     athlete = _athlete(request)
-    race = Race.objects.filter(athlete=athlete, is_target=True).first()
-    weeks = weekly_module.recent(athlete, race, weeks=6)
+    sched = schedule_module.for_athlete(athlete)
+    weeks = weekly_module.recent(athlete, sched, weeks=6)
     return Response({"weeks": [
         {
             "start": w.start, "end": w.end, "plan_week": w.plan_week, "phase": w.phase,
@@ -274,7 +283,17 @@ def niggles(request):
 @permission_classes([IsAuthenticated])
 def race_plan(request):
     athlete = _athlete(request)
-    race = Race.objects.filter(athlete=athlete, is_target=True).first()
+
+    # Race day is about one specific race, and with several on the calendar the
+    # useful default is the next one rather than the target — the plan for a B-race
+    # three weeks out is what the athlete needs this week.
+    on = _parse(request.query_params.get("date"), None)
+    races = Race.objects.filter(athlete=athlete)
+    race = (
+        races.filter(race_date=on).first() if on
+        else races.filter(race_date__gte=athlete.local_today).first()
+        or races.filter(is_target=True).first()
+    )
     if race is None:
-        return Response({"detail": "No target race set."}, status=404)
+        return Response({"detail": "No races set."}, status=404)
     return Response(build_race_plan(athlete, race))

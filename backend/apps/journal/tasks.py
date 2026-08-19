@@ -25,13 +25,10 @@ logger = logging.getLogger(__name__)
 
 def _session_for(log: DailyLog):
     """The session prescribed on the day the log was written, for context only."""
-    from apps.plans.models import Race
-    from apps.plans.template import session_for
+    from apps.plans.schedule import for_athlete
+    from apps.plans.template import session_in
 
-    race = Race.objects.filter(athlete=log.athlete, is_target=True).first()
-    if race is None:
-        return None
-    return session_for(race.race_date, log.log_date, log.athlete)
+    return session_in(for_athlete(log.athlete), log.log_date, log.athlete)
 
 
 def apply_analysis(log: DailyLog, data: dict) -> None:

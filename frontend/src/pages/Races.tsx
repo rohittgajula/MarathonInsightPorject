@@ -3,7 +3,7 @@ import { useState } from "react";
 import { api } from "../api/client";
 import { invalidateTrainingData } from "../lib/queryKeys";
 import { dateStr, durStr } from "../lib/format";
-import type { Race } from "../lib/types";
+import type { PlanSchedule, Race, ScheduleBlock } from "../lib/types";
 
 interface Paged<T> { results: T[]; }
 
@@ -13,6 +13,80 @@ const PRESETS = [
   { label: "Half", metres: 21097 },
   { label: "Marathon", metres: 42195 },
 ];
+
+/* One row per block of like days. The per-race rows below say what is on the
+   calendar; this says what the calendar *does* — which is the half that changes
+   when a second race is added, and the half no single race row can show. */
+const MODE_TONE: Record<ScheduleBlock["mode"], string> = {
+  race: "good",
+  recovery: "warn",
+  mini_taper: "accent",
+  maintenance: "",
+  build: "accent",
+  off_season: "",
+};
+
+function shortDate(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleDateString(undefined, {
+    day: "numeric", month: "short",
+  });
+}
+
+function ScheduleTimeline() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["planSchedule"],
+    queryFn: () => api.get<PlanSchedule>("/races/schedule/"),
+  });
+
+  if (isLoading) return null;
+  if (!data || data.blocks.length === 0) return null;
+
+  return (
+    <div className="card stack" style={{ gap: 12 }}>
+      <div>
+        <h2>What the plan does with them</h2>
+        <p className="muted" style={{ marginTop: 4 }}>
+          Races do not only set a deadline — the days after one are recovery, and a
+          gap too short to build across is held rather than re-ramped. This is the
+          shape your calendar actually has.
+        </p>
+      </div>
+      <div className="stack" style={{ gap: 0 }}>
+        {data.blocks.map((b) => (
+          <div
+            key={`${b.mode}-${b.start}`}
+            className="row"
+            style={{
+              gap: 12, alignItems: "baseline", padding: "9px 0",
+              borderTop: "1px solid var(--line, rgba(128,128,128,.18))",
+              opacity: b.end < data.today ? 0.5 : 1,
+            }}
+          >
+            <span className={`chip ${MODE_TONE[b.mode]}`} style={{ minWidth: 104 }}>
+              {b.label}
+            </span>
+            <span className="mono faint" style={{ minWidth: 132, fontSize: 12.5 }}>
+              {b.days === 1 ? shortDate(b.start) : `${shortDate(b.start)} – ${shortDate(b.end)}`}
+            </span>
+            <span className="faint mono" style={{ minWidth: 52, fontSize: 12.5 }}>
+              {b.days}{b.days === 1 ? " day" : " days"}
+            </span>
+            <span style={{ fontSize: 13.5, minWidth: 0 }}>
+              {b.race_name}
+              {b.is_current && <span className="chip good" style={{ marginLeft: 8 }}>now</span>}
+            </span>
+          </div>
+        ))}
+      </div>
+      {data.current.reason && (
+        <div className="adjust-note">
+          <span className="eyebrow">Today · {data.current.label}</span>
+          <p>{data.current.reason}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Races() {
   const queryClient = useQueryClient();
@@ -76,6 +150,11 @@ export function Races() {
         }}
       >
         <h2>Add a race</h2>
+        <p className="muted" style={{ marginTop: -2 }}>
+          The first race becomes your target. Any other is a B race: the plan keeps
+          counting down to the target, but gives the B race a short taper, prescribes
+          it at its own distance, and takes recovery afterwards.
+        </p>
         <div className="grid">
           <label className="stack" style={{ gap: 5 }}>
             <span className="faint">Race name</span>
@@ -118,6 +197,8 @@ export function Races() {
           </button>
         </div>
       </form>
+
+      {races.data && races.data.results.length > 0 && <ScheduleTimeline />}
 
       {races.data && races.data.results.length > 0 && (
         <div className="stack">
@@ -185,7 +266,9 @@ export function Races() {
                 <div className="row" style={{ gap: 9 }}>
                   <h2>{race.name}</h2>
                   <span className="chip">{race.distance_label}</span>
-                  {race.is_target && <span className="chip good">Target</span>}
+                  {race.is_target
+                    ? <span className="chip good" title="The race the 17-week plan counts down to">Target</span>
+                    : !race.is_past && <span className="chip" title="A hard day inside the block, not what the block is for">B race</span>}
                   {race.is_past && <span className="chip">Done</span>}
                 </div>
                 <p className="faint" style={{ margin: "4px 0 0" }}>
@@ -194,6 +277,13 @@ export function Races() {
                   {race.goal === "time" && race.target_time_s
                     ? ` · target ${durStr(race.target_time_s)}`
                     : " · finish, no time target"}
+                </p>
+                {/* The cost of the race, in the days either side of it. Both are
+                    derived from its distance, so a 5K and a marathon do not claim
+                    the same fortnight. */}
+                <p className="faint" style={{ margin: "4px 0 0", fontSize: 12.5 }}>
+                  {race.taper_days} day taper before · {race.recovery_days} days
+                  recovery after
                 </p>
               </div>
               <div style={{ textAlign: "right" }}>

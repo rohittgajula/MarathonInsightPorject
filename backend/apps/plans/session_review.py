@@ -25,7 +25,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Optional
 
 from . import readiness
-from .template import session_for
+from .template import session_in
 from .weekly import RUN_SPORTS, week_bounds
 
 # The kinds that actually ask for a run. A missed rest day is not a missed session.
@@ -162,7 +162,7 @@ STANDING = "Your standing easy band — this day prescribed no target of its own
 # ---------------------------------------------------- the day's prescription
 
 
-def planned_for(athlete, on: dt.date, race, today: dt.date,
+def planned_for(athlete, on: dt.date, sched, today: dt.date,
                 metrics_by_day: dict, logs_by_day: dict):
     """The session for one date, carrying the readiness adjustment that applies to it.
 
@@ -170,11 +170,14 @@ def planned_for(athlete, on: dt.date, race, today: dt.date,
     adjustment is applied only from today forward, for the reason the calendar gives:
     projecting tonight's sleep onto a session three weeks out would mark the whole
     plan "shortened" off a single bad night.
-    """
-    if race is None:
-        return None
 
-    session = session_for(race.race_date, on, athlete)
+    Takes the whole race calendar rather than one race: which mode a date is in
+    depends on the races either side of it, not only on the one being counted down
+    to. See `schedule.py`.
+    """
+    session = session_in(sched, on, athlete) if sched else None
+    if session is None:
+        return None
     if on < today:
         return session
 
@@ -213,6 +216,10 @@ def session_payload(session) -> Optional[dict]:
         "reps": session.reps, "rep_run_minutes": session.rep_run_minutes,
         "optional": session.optional,
         "before_plan": session.before_plan,
+        # Which of the schedule's modes produced this day, and why. A recovery day
+        # and a rest day look identical on the wire without it.
+        "mode": session.mode, "mode_reason": session.mode_reason,
+        "race_name": session.race_name,
     }
 
 
@@ -586,7 +593,7 @@ def _done_suggestions(athlete, session, activities, rows, wellness,
 # ------------------------------------------------------------------- the API
 
 
-def build(athlete, on: dt.date, race) -> DayReview:
+def build(athlete, on: dt.date, sched) -> DayReview:
     """Everything the day-detail popup shows, for one date."""
     from apps.activities.models import Activity
     from apps.journal.models import logs_by_day as journal_logs_by_day
@@ -601,7 +608,7 @@ def build(athlete, on: dt.date, race) -> DayReview:
     }
     logs_by_day = journal_logs_by_day(athlete, prior, on)
 
-    session = planned_for(athlete, on, race, today, metrics_by_day, logs_by_day)
+    session = planned_for(athlete, on, sched, today, metrics_by_day, logs_by_day)
     activities = list(
         Activity.objects.filter(athlete=athlete, local_date=on).select_related("metrics")
     )
@@ -637,8 +644,15 @@ def build(athlete, on: dt.date, race) -> DayReview:
         review.state = "upcoming"
         # The title is already the heading above this line and the headline below it;
         # repeating it a third time here is noise, not emphasis.
+        #
+        # A day off the template says *why* instead. "Nothing prescribed — a rest
+        # day" is true of a recovery day and badly misleading about it: the athlete
+        # is not resting because the week is light, they are resting because they
+        # raced on Sunday, and that is the sentence that stops them training anyway.
+        off_template = session is not None and session.mode not in ("build", "race")
         review.summary = (
-            "Not run yet." if session and session.kind != "rest"
+            session.mode_reason if off_template and session.mode_reason
+            else "Not run yet." if session and session.kind != "rest"
             else "Nothing prescribed — a rest day."
         )
         if session:

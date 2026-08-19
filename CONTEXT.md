@@ -22,7 +22,7 @@ after touching `requirements.txt`, `docker compose build backend` then
 pick them up, and the failure looks like a `ModuleNotFoundError` in code you just
 verified. The build pulls large wheels and can exceed a two-minute timeout — give it room.
 
-Tests: `docker compose exec backend python -m pytest tests/ -q` (46 passing).
+Tests: `docker compose exec backend python -m pytest tests/ -q` (74 passing).
 
 ## What this is, and what it deliberately is not
 
@@ -77,7 +77,7 @@ every queryset.
 | `ingest` | `RawFitFile`, FIT parser, Garmin sync/connect/wellness, weather |
 | `activities` | `Activity`, `ActivityRecord` (per-second), `Segment`, `ActivityMetrics`, chart notes, compare |
 | `analysis` | `segmentation.py`, `metrics.py` — **pure, no Django imports** |
-| `plans` | `Race`, plan template, readiness, coaching, calendar, weekly, niggles, race plan, warm-up, weather advice, `session_review.py` (planned vs actual for one day), `exercises.py` (34-exercise strength/rehab library), `fueling.py` (hydration + fuel, heat-scaled) |
+| `plans` | `Race`, `schedule.py` (which mode a date is in), plan template, readiness, coaching, calendar, weekly, niggles, race plan, warm-up, weather advice, `session_review.py` (planned vs actual for one day), `exercises.py` (34-exercise strength/rehab library), `fueling.py` (hydration + fuel, heat-scaled) |
 | `journal` | `DailyLog` (short, drives readiness), `JournalEntry` (long-form, drives nothing), `DailyMetrics` (Garmin wellness), `ai_extract.py` + `advice.py` + `tasks.py` (LLM reading and what follows from it) |
 | `achievements` | `EarnedAchievement` + catalog (definitions in code, only earnings stored); `services.next_up` feeds the dashboard's one-line nudge |
 
@@ -90,9 +90,36 @@ but not cadence; ≥140 spm is running). Produces two HR metrics from walk break
 climbing 15–25 s after stopping), and `hr_overshoot_bpm`. Bump `ALGORITHM_VERSION` on
 change, then re-run `build_derived` across history.
 
+**`plans/schedule.py`** — the athlete's whole race calendar, resolved to what each
+date is *for*. The plan used to know one date, which works exactly once: for a first
+race with a clear run-up. It said nothing about the days after a race, and promoting a
+second race slid the entire ramp onto the new date — two 10Ks three weeks apart
+produced cutback, peak and taper, with **peak week landing eight days after a race**.
+
+Six modes, and only `build` reads the week table: `race`, `recovery`, `mini_taper`,
+`maintenance`, `build`, `off_season`. The others exist because the table has no row
+that is right for those days. Recovery is one day per mile (rounded **up** — 6.2 rounds
+down to a window that hands straight over to a long run with no easing step). A B race
+gets days of taper where the target gets weeks. Between two races closer than
+`MIN_BUILD_WEEKS` the plan **holds at maintenance rather than re-entering the ramp**,
+because there is nothing to build and dropping someone into `weeks_out=3` gives them a
+peak week on a recovering body.
+
+Pure at import — no Django — so it is testable without a database, which is what
+`tests/test_schedule.py` does. `for_athlete` is the only function that touches the ORM.
+
+**One target race, several B races.** `is_target` still marks the A race the ramp counts
+down to. Every other race is prescribed at *its own* distance, given its own short taper
+and its own recovery window, and does not move the plan. The anchor falls back to the
+next race once the target is past — which is also what fixed the old bug where a passed
+race left `weeks_out` clamped at 0 and prescribed **race week forever**.
+
 **`plans/template.py`** — the 17-week table, indexed by *weeks remaining* so it works
 from any start date. Clamped at 16 weeks out; `before_plan` marks earlier dates so they
-are not reported as "week 1".
+are not reported as "week 1". Every mode funnels through `_from_row`, so a maintenance
+week and a build week are laid across the athlete's own `training_days` by the same
+code. `plan_week` is `None` outside the ramp: a recovery day is not "week 15 of 17",
+and printing a week number over one is the plan claiming a position it has left.
 
 **`plans/readiness.py`** — turns log + wellness into a session adjustment, with a
 `severity` of caution/critical. Pain and illness *drop* the session; poor sleep
@@ -192,8 +219,9 @@ development servers while `gunicorn` sits unused in `requirements.txt`.
 
 ## Known gaps / next steps
 
-- **No database tests.** All 46 cover pure logic (segmentation, metrics, extraction).
-  Nothing covers plan/readiness/timezone, which is exactly where the worst bugs lived.
+- **No database tests.** All 74 cover pure logic (segmentation, metrics, extraction,
+  and now race-calendar resolution in `test_schedule.py`). Nothing covers
+  readiness or the timezone handling, which is where the remaining worst bugs live.
   `pytest-django` plus a handful of tests would have caught the UTC bug.
 - **No React error boundary** — one component throwing blanks the whole app.
 - **`npm run build` is blocked** by two unused-variable errors (`tsc` runs first):

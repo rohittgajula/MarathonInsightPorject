@@ -16,7 +16,7 @@ import datetime as dt
 from dataclasses import dataclass, field
 from typing import Optional
 
-from .template import session_for
+from .template import session_in
 
 RUN_SPORTS = {"running", "trail_running", "treadmill_running", "track_running", "virtual_run"}
 
@@ -58,7 +58,7 @@ def week_bounds(any_date: dt.date) -> tuple[dt.date, dt.date]:
     return start, start + dt.timedelta(days=6)
 
 
-def review(athlete, any_date: dt.date, race=None) -> WeekReview:
+def review(athlete, any_date: dt.date, sched=None) -> WeekReview:
     from apps.activities.models import Activity
     from apps.journal.models import DailyLog
     from apps.journal.wellness import DailyMetrics
@@ -79,10 +79,10 @@ def review(athlete, any_date: dt.date, race=None) -> WeekReview:
     )
 
     sessions = []
-    if race:
+    if sched:
         cursor = start
         while cursor <= end:
-            sessions.append(session_for(race.race_date, cursor, athlete))
+            sessions.append(session_in(sched, cursor, athlete))
             cursor += dt.timedelta(days=1)
 
     # A week entirely before the plan's start gets no prescription and no verdict.
@@ -233,9 +233,9 @@ def _decide(week: WeekReview) -> None:
     )
 
 
-def recent(athlete, race=None, weeks: int = 6) -> list[WeekReview]:
+def recent(athlete, sched=None, weeks: int = 6) -> list[WeekReview]:
     today = athlete.local_today
     out = []
     for offset in range(weeks):
-        out.append(review(athlete, today - dt.timedelta(days=7 * offset), race))
+        out.append(review(athlete, today - dt.timedelta(days=7 * offset), sched))
     return out

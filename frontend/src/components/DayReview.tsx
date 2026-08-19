@@ -90,7 +90,9 @@ export function DayReview({ date, onClose }: { date: string | null; onClose: () 
             <p className="eyebrow">
               {data?.planned?.plan_week && !data.planned.before_plan
                 ? `Week ${data.planned.plan_week} · ${data.planned.phase}`
-                : "Training day"}
+                : data?.planned?.phase && data.planned.mode !== "build"
+                  ? data.planned.phase
+                  : "Training day"}
             </p>
             <h2 id="day-review-title">{longDate(date)}</h2>
           </div>
